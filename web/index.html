@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>本機KTV</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 上方導航列（唱歌畫面會自動隱藏） -->
+  <header class="topbar">
+    <a href="#/" class="logo">
+      <span class="logo-mark"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span>
+      本機KTV
+    </a>
+    <nav>
+      <a href="#/" class="nav-link">歌曲庫</a>
+      <button id="settings-button" class="btn btn-ghost">設定</button>
+    </nav>
+  </header>
+
+  <!-- 每一頁的內容會放進這裡 -->
+  <main id="app"></main>
+
+  <!-- 右下角的提示訊息 -->
+  <div id="toast-area"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

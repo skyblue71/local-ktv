@@ -1,0 +1,4007 @@
+/* =========================================================
+   本機KTV 的樣式
+
+   怎麼找：
+     1. 顏色、圓角、陰影…都定義在最上面的 :root，想換顏色改這裡就好
+     2. 接著是每一頁都會用到的小零件：按鈕、輸入框、開關、滑桿、小問號…
+     3. 再來一頁一段：歌曲庫 → 歌曲頁 → 對話方塊 → 加入歌曲 → 歌詞清單
+        → 編輯歌詞 → 修譜 → 設定 → 唱歌畫面 → 結果
+     4. 最下面是窄螢幕（手機）的排法
+   ========================================================= */
+
+:root {
+  color-scheme: dark;            /* 瀏覽器自己畫的東西（捲軸、播放器、下拉選單）也用深色 */
+
+  /* ---- 底色 ---- */
+  --bg: #0a0b13;                 /* 整個畫面的底色 */
+  --bg-2: #13141f;               /* 對話方塊、泡泡的底色 */
+  --bg-3: #1b1d2b;               /* 再亮一點（下拉選單的選項） */
+  --well: rgba(5, 6, 12, 0.55);  /* 凹進去的地方（輸入框、滑桿的軌道） */
+
+  /* ---- 一塊一塊的面板 ---- */
+  --panel: rgba(255, 255, 255, 0.045);
+  --panel-2: rgba(255, 255, 255, 0.08);
+  --panel-border: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.17);
+
+  /* ---- 字 ---- */
+  --text: #f4f3fa;
+  --muted: #a0a1b8;
+  --faint: #6f7088;
+
+  /* ---- 重點色 ---- */
+  --accent: #ff4f8b;             /* 主色：粉紅 */
+  --accent-warm: #ff8a5c;        /* 主色的另一頭：暖橘（跟粉紅一起做漸層） */
+  --accent-2: #4fe8ff;           /* 副色：青色 */
+  --gold: #ffcf5c;               /* 分數 */
+  --ok: #6cf0a0;
+  --warn: #ffc65a;
+  --error: #ff6b81;
+  --grad: linear-gradient(135deg, #ff3f84 0%, #ff7a5c 100%);         /* 主要按鈕 */
+  --grad-line: linear-gradient(90deg, #ff4f8b 0%, #ff8a5c 100%);     /* 條狀的東西（進度、滑桿） */
+
+  /* ---- 字幕 ---- */
+  --sung: #4ff0ff;               /* 字幕「唱過」的顏色 */
+  --unsung: #ffffff;             /* 字幕「還沒唱」的顏色 */
+
+  /* ---- 形狀 ---- */
+  --radius: 16px;                /* 面板、卡片 */
+  --radius-s: 10px;              /* 輸入框、小按鈕 */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 24px 70px -12px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --ring: 0 0 0 3px rgba(79, 232, 255, 0.3);      /* 用鍵盤選到時外面那一圈 */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --font: "Segoe UI Variable Text", "Segoe UI", "Microsoft JhengHei UI", "Microsoft JhengHei",
+    "PingFang TC", "Noto Sans TC", sans-serif;
+  --font-number: "Segoe UI Variable Display", "Segoe UI", var(--font);
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* 會動的數字（給動畫用）：滑桿上流光的位置、卡片邊框轉到幾度 */
+@property --range-shine {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: -40%;
+}
+
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* 倒數 3、2、1 外面那一圈填到幾度 */
+@property --sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+html {
+  background-color: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 背景：三團很淡的光（左上粉紅、右上青色、下面紫色），慢慢地飄 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -12%;
+  z-index: -1;
+  background:
+    radial-gradient(42% 36% at 16% 8%, rgba(255, 79, 139, 0.2), transparent 70%),
+    radial-gradient(38% 36% at 90% 12%, rgba(79, 232, 255, 0.12), transparent 70%),
+    radial-gradient(50% 40% at 50% 100%, rgba(140, 92, 255, 0.16), transparent 70%);
+  pointer-events: none;
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+
+/* 唱歌畫面整個蓋住了，底下的光不用動 */
+body.singing::before {
+  display: none;
+}
+
+@keyframes aurora-drift {
+  from {
+    transform: translate(-3%, -2%) rotate(-2deg);
+  }
+  to {
+    transform: translate(4%, 3%) rotate(3deg);
+  }
+}
+
+/* 條狀的東西（進度條、歌曲進度、分數條）上面那道一直往右跑的光 */
+@keyframes bar-shine {
+  from {
+    background-position: -90px 0, 0 0;
+  }
+  to {
+    background-position: calc(100% + 90px) 0, 0 0;
+  }
+}
+
+/* 從下面浮上來（換頁、結果畫面的小卡片） */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::selection {
+  background: rgba(255, 79, 139, 0.45);
+  color: #fff;
+}
+
+/* 日文、韓文用適合的字型 */
+:lang(ja) {
+  font-family: "Yu Gothic UI", "Meiryo", "Hiragino Sans", var(--font);
+}
+
+:lang(ko) {
+  font-family: "Malgun Gothic", "Apple SD Gothic Neo", var(--font);
+}
+
+a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.5px;
+}
+
+h2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+h3 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+h4 {
+  margin: 14px 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 13px;
+}
+
+.ok-text {
+  color: var(--ok);
+}
+
+.warn-text {
+  color: var(--warn);
+}
+
+/* ---------- 圖示（icons.js）：跟著字的大小、顏色 ---------- */
+
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.2em;
+}
+
+/* 標題前面的圖示：放在一個淡淡的小方塊裡 */
+h2 > .icon,
+h4 > .icon {
+  width: 28px;
+  height: 28px;
+  padding: 6px;
+  border-radius: 9px;
+  background: rgba(79, 232, 255, 0.11);
+  color: var(--accent-2);
+  vertical-align: middle;
+}
+
+h4 > .icon {
+  margin-right: 8px;
+}
+
+kbd {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* =========================================================
+   上方導航列（唱歌畫面會自動隱藏）
+   ========================================================= */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(10, 11, 19, 0.72);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+
+/* 導航列下面那條線：有一道彩色的光慢慢流過去 */
+.topbar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ff4f8b, #ff8a5c, #4fe8ff, transparent) 0 0 / 50% 100% no-repeat;
+  pointer-events: none;
+  animation: topbar-flow 7s linear infinite;
+}
+
+@keyframes topbar-flow {
+  from {
+    background-position: -100% 0;
+  }
+  to {
+    background-position: 300% 0;
+  }
+}
+
+.logo {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--grad);
+  box-shadow: 0 6px 16px -6px rgba(255, 79, 139, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: #fff;
+  transition: transform 0.25s var(--ease);
+}
+
+.logo-mark .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.3;
+  vertical-align: 0;
+}
+
+.logo:hover .logo-mark {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+.topbar nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-link:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.topbar .btn-ghost {
+  color: var(--muted);
+}
+
+.topbar .btn-ghost:hover {
+  color: var(--text);
+}
+
+body.singing .topbar {
+  display: none;
+}
+
+/* =========================================================
+   按鈕
+   ========================================================= */
+
+.btn {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.12s var(--ease), filter 0.15s;
+}
+
+.btn:hover {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.09));
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:focus-visible,
+.tab:focus-visible,
+.nav-link:focus-visible,
+.help-tip:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+/* 最主要的那一顆：粉紅到暖橘的漸層，下面有一點光 */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  border-color: transparent;
+  background: var(--grad);
+  box-shadow: 0 8px 20px -8px rgba(255, 79, 139, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(120, 20, 50, 0.35);
+}
+
+/* 滑鼠移上去：一道斜斜的反光掃過去 */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  pointer-events: none;
+  transform: translateX(-170%) skewX(-20deg);
+}
+
+.btn-primary:hover::after {
+  animation: sheen 0.75s ease-out;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(400%) skewX(-20deg);
+  }
+}
+
+/* 最大顆的主要按鈕（開始唱歌、開始）：光暈一呼一吸 */
+.btn-primary.btn-big {
+  animation: glow-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 20px -8px rgba(255, 79, 139, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 10px 34px -6px rgba(255, 79, 139, 1), 0 0 0 5px rgba(255, 79, 139, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+.btn-primary:hover {
+  border-color: transparent;
+  background: var(--grad);
+  box-shadow: 0 10px 26px -8px rgba(255, 79, 139, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  filter: brightness(1.1);
+}
+
+.btn-primary:focus-visible {
+  box-shadow: var(--ring), 0 8px 20px -8px rgba(255, 79, 139, 0.75);
+}
+
+/* 不搶眼的按鈕：平常沒有底，滑鼠移上去才有 */
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn-ghost:hover {
+  border-color: transparent;
+  background: var(--panel-2);
+}
+
+.btn-danger {
+  color: var(--error);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 107, 129, 0.14);
+  color: var(--error);
+}
+
+.btn-big {
+  min-height: 52px;
+  padding: 0 30px;
+  border-radius: 15px;
+  font-size: 17px;
+}
+
+.btn-small {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+/* 只有圖示的按鈕（滑鼠移上去有字） */
+.btn-icon {
+  width: 38px;
+  padding: 0;
+}
+
+.btn-icon .icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: 0;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+/* =========================================================
+   輸入框、下拉選單
+   ========================================================= */
+
+.input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-s);
+  background: var(--well);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.input::placeholder {
+  color: var(--faint);
+}
+
+.input:hover {
+  border-color: var(--line-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: rgba(79, 232, 255, 0.7);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 3px rgba(79, 232, 255, 0.16);
+}
+
+textarea.input {
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/* 下拉選單：右邊自己畫一個小箭頭 */
+select.input {
+  padding-right: 34px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0a1b8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+select.input option {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+/* =========================================================
+   勾選框、單選、開關
+   ========================================================= */
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+/* 勾選框（開關以外的）：自己畫的小方塊，勾起來變漸層＋白色的勾 */
+input[type="checkbox"]:not(.switch) {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--well);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+  vertical-align: -4px;
+}
+
+input[type="checkbox"]:not(.switch):hover {
+  border-color: var(--accent);
+}
+
+input[type="checkbox"]:not(.switch):checked {
+  animation: check-pop 0.25s var(--ease);
+  border-color: transparent;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat,
+    var(--grad);
+}
+
+/* 勾起來、選到的時候「啵」一下 */
+@keyframes check-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 單選的小圓圈：選到的中間有一顆粉紅色的點 */
+input[type="radio"] {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--well);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+input[type="radio"]:checked {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 0 4px, transparent 5px), var(--well);
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* 裡面放單選的 label：做成一顆一顆可以按的選項，選到的那顆會亮起來 */
+label:has(> input[type="radio"]) {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px 0 11px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+label:has(> input[type="radio"]):hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+label:has(> input[type="radio"]:checked) {
+  border-color: rgba(255, 79, 139, 0.6);
+  background: rgba(255, 79, 139, 0.14);
+  color: var(--text);
+}
+
+/* 開關：左右滑的那種 */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  vertical-align: middle;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);   /* 滑過去會彈一下 */
+}
+
+.switch:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.switch:checked {
+  background: var(--grad);
+  box-shadow: inset 0 1px 2px rgba(120, 20, 50, 0.4), 0 0 14px -2px rgba(255, 79, 139, 0.6);
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+.switch:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.switch:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* =========================================================
+   滑桿（音量、靈敏度…）
+   左邊有顏色的那一段是 rangeFill.js 算的（--range-fill = 拉到百分之幾）
+   ========================================================= */
+
+input[type="range"] {
+  --range-fill: 0%;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* 軌道：兩層疊在一起
+     上面那層：一道白色的流光，只蓋在有顏色的那一段（寬度 = --range-fill）
+     下面那層：左邊漸層色（拉到的部分）、右邊灰色（還沒拉到的部分） */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(100deg, transparent calc(var(--range-shine) - 16%), rgba(255, 255, 255, 0.75) var(--range-shine),
+      transparent calc(var(--range-shine) + 16%)) 0 0 / var(--range-fill) 100% no-repeat,
+    linear-gradient(90deg, #ff4f8b 0%, #ff8a5c var(--range-fill),
+      rgba(255, 255, 255, 0.14) var(--range-fill), rgba(255, 255, 255, 0.14) 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 滑鼠移上去、正在拉的時候：流光一直跑 */
+input[type="range"]:hover,
+input[type="range"]:active,
+input[type="range"]:focus-visible {
+  animation: range-shine 1.3s linear infinite;
+}
+
+@keyframes range-shine {
+  from {
+    --range-shine: -40%;
+  }
+  to {
+    --range-shine: 140%;
+  }
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+input[type="range"]::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--grad-line);
+}
+
+/* 可以抓的那一顆 */
+input[type="range"]::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 0 rgba(255, 79, 139, 0.35), 0 2px 6px rgba(0, 0, 0, 0.55);
+  transition: box-shadow 0.15s, transform 0.15s var(--ease);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 6px rgba(255, 79, 139, 0.25), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 8px rgba(255, 79, 139, 0.32), 0 2px 6px rgba(0, 0, 0, 0.55);
+  transform: scale(1.1);
+}
+
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(79, 232, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+/* 一列滑桿＋右邊的數字 */
+.range-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.range-value {
+  min-width: 4.6em;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--well);
+  color: var(--text);
+  font-family: var(--font-number);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   小問號：詳細說明收在這裡（ui.js 的 helpTip）
+   ========================================================= */
+
+.help-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 5px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+/* 勾選框的字後面：靠近一點，看起來跟字是一組 */
+.check > .help-tip {
+  align-self: center;
+  margin-left: -3px;
+}
+
+.help-tip:hover {
+  border-color: var(--accent-2);
+  background: rgba(79, 232, 255, 0.14);
+  box-shadow: 0 0 0 4px rgba(79, 232, 255, 0.1);
+  color: var(--accent-2);
+}
+
+.help-bubble {
+  position: fixed;
+  z-index: 200;
+  max-width: 320px;
+  padding: 11px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(27, 29, 43, 0.97);
+  box-shadow: var(--shadow-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0;
+  text-align: left;
+  white-space: pre-line;
+  pointer-events: none;
+  animation: bubble-in 0.16s var(--ease);
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   提示訊息（右下角跳出來的那種）
+   ========================================================= */
+
+#toast-area {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.toast {
+  position: relative;
+  max-width: 380px;
+  padding: 12px 18px 12px 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: rgba(27, 29, 43, 0.94);
+  box-shadow: var(--shadow-2);
+  font-size: 14px;
+  line-height: 1.5;
+  backdrop-filter: blur(14px);
+  transition: opacity 0.4s, transform 0.4s;
+  animation: toast-in 0.35s var(--ease);
+}
+
+/* 左邊的小圓點：一般 = 青色、成功 = 綠色、失敗 = 紅色 */
+.toast::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 16px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 0 4px rgba(79, 232, 255, 0.16);
+}
+
+/* 下面一條細細的線慢慢變短：縮完訊息就消失 */
+.toast::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: 0;
+  left: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent-2);
+  transform-origin: left;
+  animation: toast-timer 3s linear forwards;
+}
+
+@keyframes toast-timer {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.toast-ok::before,
+.toast-ok::after {
+  background: var(--ok);
+}
+
+.toast-error::after {
+  background: var(--error);
+}
+
+.toast-ok::before {
+  box-shadow: 0 0 0 4px rgba(108, 240, 160, 0.16);
+}
+
+.toast-error {
+  border-color: rgba(255, 107, 129, 0.45);
+}
+
+.toast-error::before {
+  background: var(--error);
+  box-shadow: 0 0 0 4px rgba(255, 107, 129, 0.18);
+}
+
+.toast-hide {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* 從右邊滑進來，稍微衝過頭再彈回來 */
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* =========================================================
+   一般頁面：外框、面板、提醒、標籤、進度條
+   ========================================================= */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 30px 24px 64px;
+}
+
+/* ---------- 換頁特效（pageEffects.js）----------
+   只有最上面一條細細的彩色光，從左邊射到右邊。
+   整個畫面不閃、不變模糊、不重新浮上來；
+   特效只做在條、按鈕這些小元件上 */
+
+.page-streak {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff4f8b 30%, #ff8a5c 55%, #4fe8ff 82%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page-streak.run {
+  animation: streak 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.singing .page-streak {
+  display: none;
+}
+
+@keyframes streak {
+  0% {
+    opacity: 1;
+    transform: translateX(-100%);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.back-link {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  max-width: 100%;
+  margin: 0 0 14px -8px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.back-link:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.panel {
+  margin-bottom: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), var(--shadow-1);
+}
+
+.two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+  margin-top: 18px;
+}
+
+.notice {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 198, 90, 0.25);
+  border-radius: 12px;
+  background: rgba(255, 198, 90, 0.1);
+  color: var(--warn);
+}
+
+.notice-error {
+  border-color: rgba(255, 107, 129, 0.3);
+  background: rgba(255, 107, 129, 0.1);
+  color: var(--error);
+}
+
+.notice .progress {
+  margin-top: 8px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  padding: 70px 20px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 92px;
+  margin-bottom: 6px;
+  border-radius: 28px;
+  background: rgba(255, 79, 139, 0.12);
+  color: var(--accent);
+}
+
+.empty-icon .icon {
+  width: 46px;
+  height: 46px;
+}
+
+/* ---------- 小標籤 ---------- */
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.tag .icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: 0;
+}
+
+.tag-ok {
+  border-color: rgba(108, 240, 160, 0.22);
+  background: rgba(108, 240, 160, 0.12);
+  color: var(--ok);
+}
+
+.tag-warn {
+  border-color: rgba(255, 198, 90, 0.24);
+  background: rgba(255, 198, 90, 0.12);
+  color: var(--warn);
+}
+
+.tag-error {
+  border-color: rgba(255, 107, 129, 0.26);
+  background: rgba(255, 107, 129, 0.13);
+  color: var(--error);
+}
+
+.tag-star {
+  margin-right: 6px;
+  border-color: rgba(255, 207, 92, 0.3);
+  background: rgba(255, 207, 92, 0.14);
+  color: var(--gold);
+  vertical-align: 2px;
+}
+
+/* ---------- 進度條（處理中、上傳中） ---------- */
+
+.progress-text {
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
+.progress {
+  height: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 上面有一道光一直往右跑，看得出來還在動 */
+.progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%) 0 0 / 90px 100% no-repeat,
+    var(--grad-line);
+  box-shadow: 0 0 10px -1px rgba(255, 79, 139, 0.8);
+  transition: width 0.4s;
+  animation: bar-shine 1.6s linear infinite;
+}
+
+/* =========================================================
+   歌曲庫
+   ========================================================= */
+
+.title-line {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.title-line h1 {
+  margin: 0;
+}
+
+/* 「27 首」做成一顆小膠囊 */
+.title-line .muted {
+  padding: 3px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+  font-family: var(--font-number);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.title-line .muted:empty {
+  display: none;
+}
+
+.library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.search-box,
+.select-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  max-width: 440px;
+  min-width: 200px;
+}
+
+.search-box > .icon,
+.select-box > .icon {
+  position: absolute;
+  left: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.search-box:focus-within > .icon,
+.select-box:focus-within > .icon {
+  color: var(--accent-2);
+}
+
+.search-box .input,
+.select-box .input {
+  min-height: 40px;
+  padding-left: 36px;
+  border-radius: 12px;
+}
+
+.select-box .input {
+  width: auto;
+  min-width: 136px;
+}
+
+.song-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 20px;
+}
+
+.song-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  box-shadow: var(--shadow-1);
+  color: var(--text);
+  transition: transform 0.25s var(--ease), border-color 0.2s, box-shadow 0.25s;
+}
+
+.song-card:hover {
+  border-color: transparent;
+  box-shadow: 0 18px 40px -16px rgba(255, 79, 139, 0.55), 0 10px 30px -12px rgba(0, 0, 0, 0.8);
+  transform: translateY(-5px);
+}
+
+/* 滑鼠移上去：邊框變成彩色的光，一直繞著卡片轉 */
+.song-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--spin), #ff4f8b, #ff8a5c, #ffcf5c, #4fe8ff, #a66bff, #ff4f8b);
+  /* 只留下最外面 2px 那一圈（中間挖空） */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.song-card:hover::before,
+.song-card:focus-visible::before {
+  opacity: 1;
+  animation: spin-border 3s linear infinite;
+}
+
+@keyframes spin-border {
+  to {
+    --spin: 360deg;
+  }
+}
+
+/* 滑鼠移上去：封面左下角四條小音量柱跟著跳 */
+.song-card .cover::before {
+  content: "";
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  z-index: 1;
+  width: 22px;
+  height: 20px;
+  background:
+    linear-gradient(#fff 0 0) 0 100% / 4px 40% no-repeat,
+    linear-gradient(#fff 0 0) 6px 100% / 4px 90% no-repeat,
+    linear-gradient(#fff 0 0) 12px 100% / 4px 60% no-repeat,
+    linear-gradient(#fff 0 0) 18px 100% / 4px 75% no-repeat;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.7));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.song-card:hover .cover::before {
+  opacity: 1;
+  animation: equalizer 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes equalizer {
+  0% {
+    background-size: 4px 40%, 4px 90%, 4px 60%, 4px 75%;
+  }
+  50% {
+    background-size: 4px 95%, 4px 35%, 4px 85%, 4px 45%;
+  }
+  100% {
+    background-size: 4px 55%, 4px 70%, 4px 30%, 4px 100%;
+  }
+}
+
+.song-card:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.cover {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #16172266;
+}
+
+.cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s var(--ease);
+}
+
+.song-card:hover .cover img {
+  transform: scale(1.06);
+}
+
+/* 封面下面淡淡變暗，跟底下的字接起來 */
+.song-card .cover::after {
+  content: "";
+  position: absolute;
+  inset: 55% 0 0;
+  background: linear-gradient(transparent, rgba(10, 11, 19, 0.55));
+  pointer-events: none;
+}
+
+/* 沒有封面：用歌名第一個字 */
+.cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255, 138, 92, 0.55), transparent 55%),
+    radial-gradient(circle at 80% 85%, rgba(79, 232, 255, 0.35), transparent 55%),
+    linear-gradient(135deg, #43215f, #8d2a5f);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 68px;
+  font-weight: 800;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.song-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 12px 14px 14px;
+}
+
+/* 歌名最多兩行（滑鼠移上去看得到完整的） */
+.song-title {
+  display: -webkit-box;
+  min-height: 2.7em;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.song-artist {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 最高分：封面右上角 */
+.best-score {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 207, 92, 0.35);
+  border-radius: 999px;
+  background: rgba(10, 11, 19, 0.72);
+  color: var(--gold);
+  font-family: var(--font-number);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(8px);
+}
+
+.card-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 22px;
+  margin-top: auto;
+  padding-top: 10px;
+  color: var(--faint);
+}
+
+.feature .icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+.song-card:hover .feature {
+  color: var(--muted);
+}
+
+.page-footer {
+  margin-top: 30px;
+  text-align: center;
+}
+
+/* =========================================================
+   歌曲頁
+   ========================================================= */
+
+/* 最上面那一大塊：封面的顏色暈開當背景（hero-glow） */
+.song-hero {
+  position: relative;
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding: 26px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), var(--shadow-1);
+}
+
+.hero-glow {
+  position: absolute;
+  inset: -60px;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  filter: blur(60px) saturate(1.5) brightness(0.5);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.song-hero > .cover,
+.song-hero-info {
+  position: relative;
+  z-index: 1;
+}
+
+.cover-big {
+  width: 232px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.85);
+}
+
+/* 封面：點一下可以換 */
+.cover-editable {
+  cursor: pointer;
+  transition: filter 0.2s, transform 0.25s var(--ease);
+}
+
+.cover-editable:hover {
+  filter: brightness(1.12);
+  transform: scale(1.015);
+}
+
+.song-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-title-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.song-hero-info h1 {
+  margin: 0;
+  font-size: 34px;
+  overflow-wrap: anywhere;
+}
+
+.hero-tools {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 3px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: rgba(10, 11, 19, 0.4);
+}
+
+.hero-tools .btn-icon {
+  width: 34px;
+  min-height: 34px;
+  color: var(--muted);
+}
+
+.hero-tools .btn-icon:hover {
+  color: var(--text);
+}
+
+.hero-tools .btn-danger:hover {
+  color: var(--error);
+}
+
+.song-artist-big {
+  margin: 6px 0 10px;
+  color: var(--accent-2);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* 歌名下面的標籤大一點 */
+.song-hero-info .tags {
+  margin: 10px 0 4px;
+}
+
+.song-hero-info .tag {
+  padding: 4px 11px;
+  font-size: 13px;
+}
+
+.song-hero-info .button-row {
+  margin-top: 22px;
+}
+
+/* ---------- 分數排行 ---------- */
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.score-table th,
+.score-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--panel-border);
+  text-align: left;
+}
+
+.score-table tr:last-child td {
+  border-bottom: none;
+}
+
+.score-table th {
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* 第一欄的名次：前三名金、銀、銅 */
+.score-table td:first-child {
+  width: 44px;
+  color: var(--muted);
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table tr:nth-child(2) td:first-child {
+  color: var(--gold);
+}
+
+.score-table tr:nth-child(3) td:first-child {
+  color: #d6dbe8;
+}
+
+.score-table tr:nth-child(4) td:first-child {
+  color: #e2a070;
+}
+
+.score-number {
+  color: var(--gold);
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 歌詞預覽（不會動的那種） ---------- */
+
+.lyrics-preview {
+  max-height: 560px;
+  margin-right: -8px;
+  padding-right: 8px;
+  overflow-y: auto;
+}
+
+.preview-line {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.preview-line:last-child {
+  border-bottom: none;
+}
+
+.line-time {
+  flex-shrink: 0;
+  min-width: 40px;
+  padding-top: 9px;
+  color: var(--faint);
+  font-family: var(--font-number);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-text .lyric-main {
+  font-size: 19px;
+  line-height: 1.9;
+}
+
+.preview-text .lyric-roma {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- 裁切 ---------- */
+
+details summary {
+  color: var(--accent-2);
+  cursor: pointer;
+}
+
+details textarea {
+  margin-top: 8px;
+}
+
+.trim-details summary {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.trim-details summary .icon {
+  margin-right: 4px;
+  color: var(--accent-2);
+}
+
+.trim-media {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  max-height: 315px;
+  margin: 12px 0;
+  border-radius: 14px;
+  background: #000;
+}
+
+audio.trim-media {
+  background: transparent;
+}
+
+.trim-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 12px 0 8px;
+}
+
+/* 開始、結束兩列對齊 */
+.trim-grid {
+  display: grid;
+  grid-template-columns: max-content max-content 7em minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  margin: 12px 0 6px;
+}
+
+.trim-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.trim-label {
+  color: var(--muted);
+}
+
+.trim-time {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   卡拉 OK 字幕的變色效果（跟 KTV 一樣）
+   每個詞有兩層一樣的字疊在一起：
+     底層 tok-base：白字（還沒唱）
+     上層 tok-over：彩色字，只露出左邊 --fill（0%~100%）的部分 → 唱到哪填色到哪
+   ========================================================= */
+
+.tok {
+  --fill: 0%;
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.tok-base {
+  color: var(--unsung);
+}
+
+.tok-over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--sung);
+  white-space: nowrap;
+  pointer-events: none;
+  /* 上、右、下、左：右邊切掉 (100% - 填色比例)，上下留空間給假名和黑邊 */
+  clip-path: inset(-30% calc(100% - var(--fill)) -30% -6px);
+}
+
+/* 對唱的顏色：0 = 沒有標記、1 = 男、2 = 女、3 = 合唱 */
+.singer-0,
+.singer-1 {
+  --sung: #4ff0ff;   /* 青色（跟音高線一樣） */
+}
+
+.singer-2 {
+  --sung: #ff7ad9;   /* 粉紅色 */
+}
+
+.singer-3 {
+  --sung: #ffd166;   /* 金色 */
+}
+
+ruby rt {
+  font-size: 0.45em;
+  font-weight: 600;
+}
+
+/* =========================================================
+   對話方塊
+   ========================================================= */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 5, 10, 0.68);
+  backdrop-filter: blur(8px);
+  animation: fade-in 0.2s ease-out;
+}
+
+/* 標題那一列固定在上面，下面的內容自己捲 */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 540px;
+  max-height: 92vh;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #191a29 0%, #11121c 100%);
+  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  animation: dialog-in 0.28s var(--ease);
+}
+
+.dialog-wide {
+  max-width: 1000px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 14px 24px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.dialog-close {
+  color: var(--muted);
+}
+
+.dialog-close:hover {
+  color: var(--text);
+}
+
+.dialog-body {
+  padding: 18px 24px 22px;
+  overflow-y: auto;
+}
+
+.dialog-body > p:first-child {
+  margin-top: 4px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.dialog-actions .btn {
+  min-width: 88px;
+}
+
+/* 寬的對話方塊（加入歌曲、設定）：下面那排按鈕固定在底部，內容捲到哪都按得到 */
+.dialog-wide .dialog-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 20px -24px -22px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--panel-border);
+  background: rgba(17, 18, 28, 0.94);
+}
+
+/* 標題下面那條線：有一道彩色的光流過去（跟最上面的導航列一樣） */
+.dialog-header {
+  position: relative;
+}
+
+.dialog-header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #ff4f8b, #ff8a5c, #4fe8ff, transparent) 0 0 / 50% 100% no-repeat;
+  pointer-events: none;
+  animation: topbar-flow 5s linear infinite;
+}
+
+/* ---------- 兩欄的表單：左邊名字、右邊輸入（每一列對齊） ---------- */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr);
+  gap: 12px 14px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.form-grid > label,
+.form-grid > span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.form-grid .button-row {
+  margin-top: 0;
+}
+
+/* =========================================================
+   加入歌曲
+   ========================================================= */
+
+.add-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 28px;
+}
+
+.column-title {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 12px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+/* 「電腦檔案／YouTube」：兩顆連在一起，選到的那顆浮起來 */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 4px;
+  border: 1px solid var(--panel-border);
+  border-radius: 13px;
+  background: var(--well);
+}
+
+.tab {
+  display: inline-flex;
+  flex: 1;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 6px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+}
+
+.tab.active .icon {
+  color: var(--accent);
+}
+
+/* 放檔案的框框 */
+.drop-zone {
+  margin: 12px 0 4px;
+  padding: 24px 16px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
+}
+
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(255, 79, 139, 0.08);
+}
+
+.drop-zone.drag-over {
+  transform: scale(1.01);
+}
+
+.drop-zone:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.drop-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  background: rgba(255, 79, 139, 0.13);
+  color: var(--accent);
+}
+
+.drop-icon .icon {
+  width: 26px;
+  height: 26px;
+}
+
+/* 檔名很長也整個看得到（自動換行） */
+#drop-text {
+  overflow-wrap: anywhere;
+}
+
+/* 選好檔案了：框變成綠色實線 */
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: rgba(108, 240, 160, 0.5);
+  background: rgba(108, 240, 160, 0.06);
+}
+
+.drop-zone.has-file .drop-icon {
+  background: rgba(108, 240, 160, 0.14);
+  color: var(--ok);
+}
+
+.drop-zone.has-file #drop-text .icon {
+  color: var(--ok);
+}
+
+.youtube-row {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+
+.youtube-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+#youtube-status {
+  overflow-wrap: anywhere;
+}
+
+.own-lyrics {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+/* =========================================================
+   歌詞清單（「加入歌曲」和「編輯歌詞」共用，lyricsPicker.js）
+   ========================================================= */
+
+.lyrics-picker {
+  margin: 0 0 10px;
+}
+
+/* 歌名的格子比較寬，長歌名看得到比較多字 */
+.picker-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.picker-status {
+  min-height: 22px;
+}
+
+.search-results {
+  max-height: 360px;
+  margin-top: 10px;
+  margin-right: -8px;
+  padding: 2px 8px 2px 2px;
+  overflow-y: auto;
+}
+
+.picker-results {
+  margin-top: 6px;
+}
+
+.search-results.busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.lyrics-picker.faded .picker-results {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* 每一份歌詞是一張小卡片，整張都可以點 */
+.result-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.result-item:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.result-item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* 選到的那一份：青色的框、淡淡的青色底 */
+.result-item.chosen {
+  border-color: rgba(79, 232, 255, 0.6);
+  background: rgba(79, 232, 255, 0.09);
+  box-shadow: 0 0 0 1px rgba(79, 232, 255, 0.25), 0 8px 22px -14px rgba(79, 232, 255, 0.7);
+}
+
+/* 左邊的圓圈：選到的打勾 */
+.pick-mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  color: #06121a;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.result-item:hover .pick-mark {
+  border-color: rgba(79, 232, 255, 0.7);
+}
+
+.result-item.chosen .pick-mark {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  box-shadow: 0 0 12px -1px rgba(79, 232, 255, 0.8);
+  animation: check-pop 0.3s var(--ease);
+}
+
+.pick-mark .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3.2;
+  vertical-align: 0;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 歌名 · 歌手：太長就換行，整個都看得到（不要用 … 切掉，才知道是哪個名字） */
+.result-title {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.result-info > .muted.small {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+/* 下面的前兩句歌詞：一樣整個看得到，太長就換行 */
+.result-preview {
+  margin-top: 5px;
+  padding-left: 9px;
+  border-left: 2px solid rgba(255, 255, 255, 0.14);
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.result-item.chosen .result-preview {
+  border-left-color: rgba(79, 232, 255, 0.5);
+}
+
+/* 每一筆右邊：對不對得上的標籤＋試聽鍵 */
+.result-item .result-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.result-item .result-actions:empty {
+  display: none;
+}
+
+.result-item .result-actions .tag {
+  cursor: help;
+}
+
+.btn-listen,
+.listen-stop {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+}
+
+.btn-listen:hover {
+  border-color: rgba(79, 232, 255, 0.6);
+  color: var(--accent-2);
+}
+
+.result-none {
+  align-items: center;
+  border-style: dashed;
+}
+
+.result-none .result-title {
+  color: var(--muted);
+}
+
+.current-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 8px;
+}
+
+/* 「▶ 試聽」：那一筆下面出現小小的卡拉 OK 字幕＋進度條 */
+.listen-box {
+  margin: -2px 0 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(79, 232, 255, 0.25);
+  border-radius: 13px;
+  background: rgba(3, 4, 9, 0.6);
+}
+
+.listen-box .lyric-slot {
+  min-height: 0;
+}
+
+.listen-box .lyric-slot .lyric-main {
+  font-size: 22px;
+  line-height: 1.6;
+}
+
+.listen-box .lyric-slot .lyric-roma {
+  font-size: 13px;
+}
+
+.listen-box .countdown {
+  height: 18px;
+  font-size: 15px;
+  line-height: 18px;
+}
+
+.listen-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.listen-seek {
+  flex: 1;
+  min-width: 0;
+}
+
+.listen-time {
+  min-width: 38px;
+  color: var(--muted);
+  font-family: var(--font-number);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   編輯歌曲資料（封面）
+   ========================================================= */
+
+.cover-editor {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.cover-drop {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+  height: 140px;
+  overflow: hidden;
+  border: 1.5px dashed rgba(255, 255, 255, 0.24);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #43215f, #8d2a5f);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s var(--ease);
+}
+
+.cover-drop:hover,
+.cover-drop.drag-over {
+  border-color: var(--accent);
+  transform: scale(1.02);
+}
+
+.cover-drop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-letter {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 48px;
+  font-weight: 800;
+}
+
+.cover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* =========================================================
+   編輯歌詞
+   ========================================================= */
+
+.editor-columns {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  margin-top: 16px;
+}
+
+.preview-panel {
+  position: sticky;
+  top: 78px;
+}
+
+.preview-panel .lyrics-preview {
+  max-height: calc(100vh - 176px);
+}
+
+.lrc-editor {
+  height: 300px;
+  font-family: Consolas, "Cascadia Mono", "Microsoft JhengHei", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* 整首移動：提早 [1][0.5][0.1] [ 秒 ] [0.1][0.5][1] 延後 */
+.offset-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.offset-control .btn-small {
+  min-width: 42px;
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+
+.offset-end {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.offset-value {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.offset-value .input {
+  width: 88px;
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* 點按同步 */
+.tap-box {
+  padding: 22px 18px 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--well);
+  text-align: center;
+}
+
+.tap-time {
+  color: var(--accent-2);
+  font-family: var(--font-number);
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tap-line {
+  margin: 6px 0;
+  font-size: 26px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.tap-after {
+  min-height: 1.5em;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+
+.tap-tools {
+  justify-content: center;
+}
+
+.tap-tools .control-slider input {
+  width: 110px;
+}
+
+/* =========================================================
+   修譜頁
+   ========================================================= */
+
+.chart-page {
+  max-width: none;
+}
+
+.chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.chart-head h1 {
+  margin: 0;
+}
+
+/* 「用的是 AI 的譜」「已儲存 ✓」 */
+#chart-status:not(:empty) {
+  padding: 3px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+/* 工具列：一整條浮在圖上面 */
+.chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 14px 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  box-shadow: var(--shadow-1);
+}
+
+.chart-toolbar .check {
+  margin: 0 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.toolbar-space {
+  flex: 1;
+}
+
+.chart-time {
+  min-width: 72px;
+  padding: 4px 10px;
+  border-radius: 9px;
+  background: var(--well);
+  color: var(--text);
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.chart-box {
+  height: min(64vh, 560px);
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: rgba(4, 5, 10, 0.5);
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.5), var(--shadow-1);
+}
+
+.chart-box canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;   /* 手指拖評分條時，整個網頁不要跟著捲 */
+}
+
+/* 左右捲動條：長得像捲軸（寬寬的一顆，沒有填色） */
+input.chart-scroll {
+  width: 100%;
+  height: 16px;
+  margin-top: 10px;
+}
+
+input.chart-scroll::-webkit-slider-runnable-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+input.chart-scroll::-webkit-slider-thumb {
+  width: 72px;
+  height: 10px;
+  margin-top: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: none;
+}
+
+input.chart-scroll:hover::-webkit-slider-thumb,
+input.chart-scroll:active::-webkit-slider-thumb {
+  background: var(--accent);
+  box-shadow: 0 0 12px -2px rgba(255, 79, 139, 0.8);
+  transform: none;
+}
+
+input.chart-scroll::-moz-range-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+input.chart-scroll::-moz-range-progress {
+  background: transparent;
+}
+
+input.chart-scroll::-moz-range-thumb {
+  width: 72px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+/* =========================================================
+   設定
+   ========================================================= */
+
+.settings-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.settings-columns > div {
+  display: grid;
+  gap: 14px;
+}
+
+/* 每一類設定是一張卡片，各有自己的顏色（--tone）：
+   左上角淡淡的光、上面一條細細的色線、標題的圖示都用這個顏色 */
+.settings-section {
+  --tone: var(--accent-2);
+  position: relative;
+  padding: 14px 18px 6px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--tone) 13%, transparent), transparent 62%),
+    rgba(255, 255, 255, 0.035);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: rise-in 0.45s var(--ease) backwards;
+}
+
+.settings-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 18px;
+  left: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--tone), transparent 70%);
+  opacity: 0.8;
+}
+
+/* 滑鼠移到哪一張，那一張的邊框就亮起來 */
+.settings-section:hover {
+  border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+  box-shadow: 0 10px 30px -18px var(--tone);
+}
+
+.tone-pink { --tone: #ff4f8b; }
+.tone-gold { --tone: #ffcf5c; }
+.tone-cyan { --tone: #4fe8ff; }
+.tone-violet { --tone: #a98bff; }
+.tone-green { --tone: #6cf0a0; }
+
+/* 打開設定時，卡片一張接一張浮上來（左邊三張、右邊兩張） */
+.settings-columns > div:first-child > .settings-section:nth-child(2) { animation-delay: 0.08s; }
+.settings-columns > div:first-child > .settings-section:nth-child(3) { animation-delay: 0.16s; }
+.settings-columns > div:last-child > .settings-section:nth-child(1) { animation-delay: 0.04s; }
+.settings-columns > div:last-child > .settings-section:nth-child(2) { animation-delay: 0.12s; }
+
+.settings-section h4 {
+  display: flex;
+  align-items: center;
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.settings-section h4 > .icon {
+  background: color-mix(in srgb, var(--tone) 17%, transparent);
+  color: var(--tone);
+}
+
+/* 設定裡的滑桿、開關跟著那一張卡片的顏色 */
+.settings-section .range-value {
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+  color: color-mix(in srgb, var(--tone) 55%, #fff);
+}
+
+/* 麥克風測試那一列：包成一個凹進去的框，音量條大一點 */
+.settings-section .mic-test {
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--well);
+}
+
+.settings-section .mic-meter {
+  height: 14px;
+}
+
+.settings-section .form-grid {
+  grid-template-columns: 9em minmax(0, 1fr);
+  margin: 10px 0 12px;
+}
+
+/* 麥克風測試：按鈕、音量條、音名 */
+.mic-test {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.test-note {
+  min-width: 110px;
+  color: var(--accent-2);
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 麥克風音量條：一格一格的，小聲綠、大聲黃、太大紅 ---------- */
+
+.mic-meter {
+  width: 84px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.13);
+  container-type: inline-size;   /* 讓裡面的顏色照「整條」的寬度排，不是照亮起來的那一段 */
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+}
+
+.mic-meter.wide {
+  flex: 1;
+  width: auto;
+}
+
+.mic-meter-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok) 0%, var(--ok) 55%, var(--warn) 78%, var(--error) 100%) 0 0 / 100cqw 100% no-repeat;
+  transition: width 0.08s;
+}
+
+/* =========================================================
+   唱歌畫面
+   （這一頁不用毛玻璃效果：唱歌時每一格畫面都要快）
+   ========================================================= */
+
+.sing-page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(160px, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr);   /* 寬度就是畫面的寬度：歌名、歌詞再長也不會把畫面撐出去 */
+  /* clip = 超出去的切掉，而且「不能捲」。用 hidden 的話，背景比畫面大一圈，
+     按 Tab 選到按鈕時瀏覽器可能把整個唱歌畫面往上捲一截，上面那排就不見了 */
+  overflow: hidden;
+  overflow: clip;
+  background: #06070d;
+}
+
+/* 背景：封面放大、弄糊、變暗，慢慢飄 */
+.sing-background {
+  position: absolute;
+  inset: -60px;
+  z-index: 0;
+  background: radial-gradient(circle at 28% 28%, #7a2456, transparent 60%),
+    radial-gradient(circle at 80% 72%, #0f4a6e, transparent 55%), #06070d;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) brightness(0.45) saturate(1.3);
+  animation: background-drift 20s ease-in-out infinite alternate;
+}
+
+/* MV 背景：影片鋪滿整個畫面 */
+.sing-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  pointer-events: none;
+}
+
+@keyframes background-drift {
+  from {
+    transform: scale(1.05) translate(0, 0);
+  }
+  to {
+    transform: scale(1.15) translate(-20px, 10px);
+  }
+}
+
+.sing-top,
+.pitch-area,
+.lyrics-area,
+.sing-controls {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 上面：離開、歌名、COMBO、得分、設定 ---------- */
+
+.sing-top {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 20px 12px;
+  background: linear-gradient(rgba(6, 7, 13, 0.6), transparent);
+}
+
+/* 有 MV 的時候上面暗一點，字才看得清楚 */
+.sing-video:not(.hidden) ~ .sing-top {
+  background: linear-gradient(rgba(6, 7, 13, 0.82), transparent);
+}
+
+.sing-top .btn-ghost {
+  background: rgba(8, 9, 16, 0.45);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sing-top .btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.sing-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sing-song-title {
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+}
+
+.sing-song-artist {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 13px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+
+.sing-hud {
+  display: flex;
+  gap: 10px;
+}
+
+/* COMBO、得分：各一個小牌子 */
+.hud-item {
+  min-width: 84px;
+  padding: 6px 16px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(8, 9, 16, 0.58);
+  text-align: right;
+}
+
+/* 連擊 10 以上：COMBO 那個牌子的邊框也亮起來 */
+.hud-item {
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.hud-item:has(.combo-hot) {
+  border-color: rgba(255, 79, 139, 0.7);
+  box-shadow: 0 0 22px -4px rgba(255, 79, 139, 0.85);
+}
+
+.hud-label {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.hud-value {
+  font-family: var(--font-number);
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.hud-score {
+  min-width: 90px;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(255, 207, 92, 0.45);
+}
+
+/* 連擊 10 以上：變粉紅、發光、一跳一跳 */
+.combo-hot {
+  color: var(--accent);
+  text-shadow: 0 0 14px var(--accent);
+  transform-origin: right center;
+  animation: combo-beat 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes combo-beat {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+
+/* ---------- 中間：音高圖 ---------- */
+
+.pitch-area {
+  margin: 0 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  background: rgba(4, 5, 10, 0.4);
+  box-shadow: inset 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+.pitch-area canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 音高圖最上面一條細細的彩色線 */
+.pitch-area::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 12%;
+  left: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 79, 139, 0.8), rgba(79, 232, 255, 0.8), transparent);
+  pointer-events: none;
+}
+
+.test-badge {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 198, 90, 0.35);
+  border-radius: 999px;
+  background: rgba(40, 30, 8, 0.75);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- 字幕區 ---------- */
+
+.lyrics-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 230px;
+  padding: 12px 6vw;
+}
+
+.lyric-slot {
+  min-height: 96px;
+}
+
+/* 字幕的黑邊：不管背景（MV）多亮，白字和彩色字都看得清楚 */
+.lyric-slot .tok-base,
+.lyric-slot .tok-over {
+  text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000,
+    0 -2px 0 #000, 0 2px 0 #000, -2px 0 0 #000, 2px 0 0 #000, 0 3px 8px rgba(0, 0, 0, 0.8);
+}
+
+.slot-top {
+  text-align: left;
+}
+
+.slot-bottom {
+  text-align: right;
+}
+
+.lyric-slot .lyric-main {
+  font-size: clamp(24px, 4vw, 48px);
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.lyric-slot .lyric-roma {
+  margin-top: 2px;
+  font-size: clamp(14px, 1.7vw, 21px);
+  font-weight: 600;
+}
+
+.lyric-slot .lyric-roma .tok-base {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.lyric-empty {
+  color: var(--muted);
+  font-size: 18px;
+  text-align: center;
+}
+
+/* 字幕上方的 ●●●●：下一句快開始了（前奏、間奏時出現） */
+.countdown {
+  height: 28px;
+  color: var(--accent);
+  font-size: 24px;
+  line-height: 28px;
+  letter-spacing: 8px;
+  text-shadow: 0 0 10px var(--accent), 0 0 3px #000;
+  animation: dots-pulse 0.5s ease-in-out infinite alternate;   /* 一閃一閃 */
+}
+
+@keyframes dots-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lyric-content.appear {
+  animation: lyric-appear 0.35s ease-out;
+}
+
+@keyframes lyric-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- 下面的控制列：一整條浮在畫面上 ---------- */
+
+.sing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 16px 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: rgba(8, 9, 16, 0.72);
+  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.time-label {
+  min-width: 84px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-number);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* 歌曲進度：細細一條，滑鼠移上去變粗、出現一顆圓點 */
+.seek-bar {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+  height: 20px;
+  padding: 7px 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  background-clip: content-box;
+  cursor: pointer;
+  transition: padding 0.15s;
+}
+
+.seek-bar:hover {
+  padding: 6px 0;
+}
+
+.seek-fill {
+  position: relative;
+  width: 0;
+  max-width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%) 0 0 / 90px 100% no-repeat,
+    var(--grad-line);
+  box-shadow: 0 0 10px -1px rgba(255, 79, 139, 0.7);
+  animation: bar-shine 2.6s linear infinite;   /* 一道光一直往右流 */
+}
+
+.seek-fill::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 13px;
+  height: 13px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.15s, transform 0.15s var(--ease);
+}
+
+.seek-bar:hover .seek-fill::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 導唱、伴奏、總音量：名字＋滑桿，包成一顆膠囊 */
+.control-slider {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.control-slider input {
+  width: 80px;
+}
+
+.control-slider .icon {
+  width: 17px;
+  height: 17px;
+}
+
+/* 導唱那一組：左邊是開關按鈕，所以左邊不留空 */
+#guide-control {
+  padding-left: 4px;
+}
+
+/* 導唱開關：打開時用主色，一眼就看得出來 */
+.guide-toggle {
+  min-width: 82px;
+}
+
+.guide-toggle.on {
+  border-color: transparent;
+  background: var(--grad);
+  box-shadow: 0 4px 14px -6px rgba(255, 79, 139, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.sing-controls .mic-meter {
+  margin: 0 2px;
+}
+
+/* 「跳過前奏／間奏」：在下面這排控制列裡（「重來」的右邊），不蓋在畫面上。
+   出現的時候光暈一呼一吸、箭頭一直往右點，看得出來可以按 */
+#skip-intro {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* 它出現的時候，歌曲進度條讓出一點位置，整排才不會被擠成兩行 */
+.sing-controls:has(#skip-intro:not(.hidden)) .seek-bar {
+  min-width: 60px;
+}
+
+/* ---------- 蓋在唱歌畫面上的視窗（載入中、開始、結果） ---------- */
+
+.sing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(4, 5, 10, 0.74);
+  backdrop-filter: blur(8px);
+}
+
+.overlay-box {
+  width: 100%;
+  max-width: 700px;
+  max-height: 94vh;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.overlay-message {
+  padding: 38px 32px 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(27, 28, 44, 0.96), rgba(15, 16, 26, 0.96));
+  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  animation: card-in 0.3s var(--ease);
+}
+
+/* 蓋在唱歌畫面上的卡片出現：只從小變大、從透明變清楚。
+   不往上移——外面的框（.overlay-box）會捲，移動的那一下會閃出捲動條 */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.overlay-message h2 {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.overlay-message p {
+  margin: 6px 0;
+}
+
+.overlay-message .button-row {
+  justify-content: center;
+  margin-top: 22px;
+}
+
+/* ---------- 開始畫面：封面做成一張慢慢轉的唱片 ---------- */
+
+.start-screen {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 卡片上面一團粉紅色的光 */
+.start-screen::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  right: 10%;
+  left: 10%;
+  height: 240px;
+  background: radial-gradient(closest-side, rgba(255, 79, 139, 0.28), transparent);
+  pointer-events: none;
+}
+
+.start-screen > * {
+  position: relative;
+}
+
+.start-disc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #ff8a5c, #8d2a5f 60%, #43215f) center / cover;
+  box-shadow: 0 0 0 5px rgba(8, 9, 16, 0.9), 0 14px 40px -8px rgba(255, 79, 139, 0.65);
+  color: rgba(255, 255, 255, 0.92);
+  animation: disc-spin 14s linear infinite;
+}
+
+.start-disc .icon {
+  width: 46px;
+  height: 46px;
+}
+
+/* 唱片外面一圈彩色的光（跟著唱片一起轉） */
+.start-disc::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  padding: 3px;
+  border-radius: 50%;
+  background: conic-gradient(#ff4f8b, #ff8a5c, #ffcf5c, #4fe8ff, #a98bff, #ff4f8b);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* 唱片中間的洞（有封面圖才有） */
+.start-disc[style]::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  border: 4px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  background: #11121c;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes disc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 按鍵提示：空白鍵 暫停　G 導唱 */
+.start-hint {
+  margin: 16px 0 0;
+}
+
+.start-hint kbd {
+  margin: 0 6px 0 16px;
+  color: var(--text);
+}
+
+.start-hint kbd:first-child {
+  margin-left: 0;
+}
+
+/* 「開始」：整個畫面最大顆的按鈕 */
+.start-button {
+  min-width: 190px;
+  min-height: 60px;
+  border-radius: 18px;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+/* 「載入歌曲中…」：前面有一個彩色的圈圈在轉 */
+.loading-text {
+  display: inline-flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.loading-text::before {
+  content: "";
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  border-radius: 50%;
+  background: conic-gradient(transparent 10%, #ff4f8b, #ff8a5c, #4fe8ff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 開始前的 3、2、1：數字放大跳出來時會超出框框，所以框框不要出現捲動條 */
+.overlay-box:has(.countdown-area) {
+  overflow: visible;
+}
+
+.countdown-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 72px;   /* 數字跳出來的時候圓圈會先放大，留夠空間才不會蓋到「跳過」 */
+}
+
+/* 數字放在一個圓圈裡：
+     ::before = 外面那一圈，每一個數字的時間裡繞著填滿一圈（像碼表）
+     ::after  = 每換一個數字，一圈光往外炸開 */
+.countdown-number {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 79, 139, 0.3), rgba(255, 79, 139, 0.06) 62%, transparent 70%);
+  color: #fff;
+  font-family: var(--font-number);
+  font-size: 150px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 40px var(--accent), 0 0 90px rgba(255, 138, 92, 0.55);
+}
+
+.countdown-number::before {
+  --sweep: 0deg;
+  content: "";
+  position: absolute;
+  inset: 8px;
+  padding: 7px;
+  border-radius: 50%;
+  background: conic-gradient(#ff4f8b, #ff8a5c var(--sweep), rgba(255, 255, 255, 0.12) var(--sweep));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+.countdown-number::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(79, 232, 255, 0.85);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+/* 每換一個數字就重新跳出來一次（singPage.js 換數字時加上 pop） */
+.countdown-number.pop {
+  animation: countdown-pop 0.7s ease-out;
+}
+
+.countdown-number.pop::before {
+  animation: countdown-sweep 0.7s linear;
+}
+
+.countdown-number.pop::after {
+  animation: ring-burst 0.7s ease-out;
+}
+
+@keyframes countdown-sweep {
+  from {
+    --sweep: 0deg;
+  }
+  to {
+    --sweep: 360deg;
+  }
+}
+
+@keyframes ring-burst {
+  from {
+    opacity: 0.9;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* 倒數時的「跳過」：玻璃感的大膠囊，箭頭一直往右點 */
+.skip-countdown {
+  min-width: 220px;
+  min-height: 60px;
+  padding: 0 34px;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 20px;
+}
+
+.skip-countdown:hover {
+  border-color: var(--accent);
+  background: rgba(255, 79, 139, 0.22);
+}
+
+.skip-countdown .icon,
+#skip-intro .icon {
+  animation: nudge 0.9s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes countdown-pop {
+  from {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* =========================================================
+   結果畫面（唱完）
+   ========================================================= */
+
+.result {
+  padding: 22px 28px 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 26px;
+  background: linear-gradient(180deg, rgba(27, 28, 44, 0.97), rgba(15, 16, 26, 0.97));
+  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  animation: card-in 0.35s var(--ease);
+}
+
+.new-best {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 5px 18px;
+  border: 1px solid rgba(255, 207, 92, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 207, 92, 0.13);
+  color: var(--gold);
+  font-size: 17px;
+  font-weight: 800;
+  animation: countdown-pop 0.6s ease-out;
+}
+
+.result-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-around;
+}
+
+/* 等級（SSS、A…）：金色到粉紅的漸層字，轉一下蓋上去，之後一直有光流過 */
+.result-rank {
+  background: linear-gradient(110deg, #ffe08a 0%, #ffb35c 25%, #ff4f8b 45%, #fff3c4 55%, #ffb35c 70%, #ffe08a 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-number);
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1;
+  filter: drop-shadow(0 6px 22px rgba(255, 138, 92, 0.45));
+  animation: rank-stamp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) backwards, rank-shine 3.2s linear infinite;
+}
+
+@keyframes rank-stamp {
+  from {
+    opacity: 0;
+    transform: scale(2.6) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes rank-shine {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -66% 0;
+  }
+}
+
+.result-total {
+  font-family: var(--font-number);
+  font-size: 56px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  letter-spacing: 0.5px;
+}
+
+.result-bonus {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.radar {
+  max-width: 100%;
+}
+
+.result-comment {
+  margin: 4px 0 12px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* 音準、節奏…五條 */
+.result-bars {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.result-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 5px 0;
+}
+
+.result-bar-label {
+  width: 56px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.result-bar-track {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 一條一條輪流長出來，之後上面一直有光流過 */
+.result-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%) 0 0 / 90px 100% no-repeat,
+    var(--grad-line);
+  animation: bar-grow 1.1s var(--ease) backwards, bar-shine 2.4s linear 1.2s infinite;
+}
+
+.result-bar:nth-child(2) .result-bar-fill { animation-delay: 0.12s, 1.3s; }
+.result-bar:nth-child(3) .result-bar-fill { animation-delay: 0.24s, 1.4s; }
+.result-bar:nth-child(4) .result-bar-fill { animation-delay: 0.36s, 1.5s; }
+.result-bar:nth-child(5) .result-bar-fill { animation-delay: 0.48s, 1.6s; }
+
+@keyframes bar-grow {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.result-bar-value {
+  width: 44px;
+  font-family: var(--font-number);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* PERFECT、GREAT…各幾個 */
+.result-counts {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin: 16px 0 10px;
+}
+
+.result-counts div,
+.result-techniques div {
+  padding: 8px 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+/* 小卡片一張接一張浮上來 */
+.result-counts div,
+.result-techniques div {
+  animation: rise-in 0.5s var(--ease) backwards;
+}
+
+.result-counts div:nth-child(1) { animation-delay: 0.5s; }
+.result-counts div:nth-child(2) { animation-delay: 0.58s; }
+.result-counts div:nth-child(3) { animation-delay: 0.66s; }
+.result-counts div:nth-child(4) { animation-delay: 0.74s; }
+.result-counts div:nth-child(5) { animation-delay: 0.82s; }
+.result-techniques div:nth-child(1) { animation-delay: 0.9s; }
+.result-techniques div:nth-child(2) { animation-delay: 0.98s; }
+.result-techniques div:nth-child(3) { animation-delay: 1.06s; }
+.result-techniques div:nth-child(4) { animation-delay: 1.14s; }
+
+.result-counts b,
+.result-techniques b {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-number);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.grade {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.grade-PERFECT {
+  color: #ffd54a;
+}
+
+.grade-GREAT {
+  color: var(--ok);
+}
+
+.grade-GOOD {
+  color: #5ac8ff;
+}
+
+.grade-MISS {
+  color: var(--error);
+}
+
+/* 技巧次數 */
+.result-techniques {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 0 0 4px;
+}
+
+.result-techniques div {
+  border-color: rgba(255, 207, 92, 0.16);
+  background: rgba(255, 207, 92, 0.06);
+}
+
+.technique-name {
+  display: block;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.technique-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.result-recording {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--well);
+}
+
+.result-recording audio {
+  height: 36px;
+}
+
+.result .result-actions {
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.result .result-actions .btn {
+  min-width: 120px;
+}
+
+/* =========================================================
+   電腦設定了「減少動態效果」的話：動畫都不要播
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================
+   窄的螢幕（手機、視窗拉很窄）：兩欄改成一欄
+   ========================================================= */
+
+@media (max-width: 760px) {
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .page {
+    padding: 22px 16px 50px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .two-columns,
+  .add-layout,
+  .settings-columns,
+  .editor-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-panel {
+    position: static;
+  }
+
+  .form-grid {
+    grid-template-columns: 6.5em minmax(0, 1fr);
+  }
+
+  .search-box {
+    max-width: none;
+  }
+
+  .song-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .song-hero {
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .song-hero-info {
+    width: 100%;
+  }
+
+  .song-hero-info h1 {
+    font-size: 28px;
+  }
+
+  .cover-big {
+    width: 168px;
+  }
+
+  .dialog-body {
+    padding: 16px 18px 20px;
+  }
+
+  .dialog-header {
+    padding-left: 18px;
+  }
+
+  .dialog-wide .dialog-actions {
+    margin: 18px -18px -20px;
+    padding: 12px 18px;
+  }
+
+  /* 歌詞清單：右邊的標籤、試聽鍵放到下面一行，歌名才有地方 */
+  .result-item {
+    flex-wrap: wrap;
+  }
+
+  .result-item .result-actions {
+    width: 100%;
+    padding-left: 34px;
+  }
+
+  .picker-search {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .picker-search .input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .trim-grid {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .trim-time {
+    display: none;
+  }
+
+  .trim-buttons {
+    grid-column: 1 / -1;
+  }
+
+  #toast-area {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+  }
+
+  /* 唱歌畫面 */
+  .sing-top {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .hud-item {
+    min-width: 0;
+    padding: 4px 10px 5px;
+  }
+
+  .hud-value {
+    font-size: 20px;
+  }
+
+  .hud-score {
+    min-width: 64px;
+  }
+
+  .pitch-area {
+    margin: 0 8px;
+  }
+
+  .lyrics-area {
+    min-height: 180px;
+    padding: 10px 16px;
+  }
+
+  .sing-controls {
+    gap: 8px;
+    margin: 0 8px 8px;
+    padding: 8px;
+  }
+
+  .control-slider input {
+    width: 64px;
+  }
+
+  .result {
+    padding: 22px 16px;
+  }
+
+  .result-counts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .result-techniques {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

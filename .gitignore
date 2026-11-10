@@ -1,0 +1,27 @@
+# 這些不放進 Git
+
+# 虛擬環境：很大，用 setup.bat 自己裝
+.venv/
+
+# 歌曲資料：歌、影片、歌詞、分數，和處理出來的人聲、伴奏、評分條、字幕
+data/
+
+# 程式執行時自動產生的
+__pycache__/
+*.pyc
+*.log
+*.tmp
+*.part
+
+# 聲音檔、影片檔、AI 模型檔不管放在哪裡都不進 Git
+*.wav
+*.flac
+*.mp3
+*.m4a
+*.mp4
+*.webm
+*.npy
+*.ckpt
+*.pt
+*.pth
+*.safetensors

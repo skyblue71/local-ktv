@@ -1,0 +1,44 @@
+# 本機KTV 需要的 Python 套件（版本固定）
+# 下載來源：https://pypi.org （Python 官方套件庫）
+#
+# 注意：PyTorch 要另外從 PyTorch 官方網站安裝（setup.bat 會處理）：
+#   https://download.pytorch.org/whl/cu128
+
+# 網頁伺服器
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.33
+requests==2.34.2
+
+# 音訊處理
+numpy==2.5.4
+scipy==1.18.1
+soundfile==0.14.0
+imageio-ffmpeg==0.8.1
+mutagen==1.48.1
+
+# 日文、中文歌詞處理
+pykakasi==2.3.0
+pypinyin==0.55.0
+fugashi==1.5.2
+unidic-lite==1.0.8
+
+# AI：去人聲、音高辨識
+# 去人聲 Mel-Band RoFormer 要用的（rotary-embedding-torch 0.3.5 是模型作者指定的版本，只有兩個純 Python 檔）
+einops==0.8.2
+rotary-embedding-torch==0.3.5
+# 另一個可以選的去人聲 Demucs（config.py 的 SEPARATOR）
+demucs==4.1.0
+torchcrepe==0.0.24
+librosa==1.0.0
+
+# 從 YouTube 加歌：官方推薦組合 yt-dlp[default] 裡的套件，但「不裝 pycryptodomex」
+#   原因：Windows 的「智慧型應用程式控制」會擋它的檔案。
+#   YouTube 用不到它（它是解某些加密影片用的），yt-dlp 沒有它也能正常下載。
+# YouTube 常常改版，下載失敗時可以更新：.venv\Scripts\python -m pip install -U yt-dlp yt-dlp-ejs
+yt-dlp==2026.10.26
+yt-dlp-ejs==0.8.0
+brotli==1.2.1
+certifi==2026.10.23
+urllib3==2.8.0
+websockets==17.4

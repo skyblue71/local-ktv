@@ -12,6 +12,14 @@ const RECOMMEND_LIMIT = 15;
 // 每一筆下面顯示幾句歌詞，讓你看得出是不是這首、是不是這個版本
 const PREVIEW_LINES = 2;
 
+// 這份歌詞是給多長的歌用的（秒）。兩個都看，取比較長的：
+//   1. 資料庫上標的長度（item.duration）
+//   2. 歌詞最後一句的時間（item.lyrics_end）
+// 有些歌詞標的長度是錯的（例如標 1:59，最後一句卻在 4:41）。兩個都不知道回傳 0
+export function realLength(item) {
+  return Math.max(item.duration || 0, item.lyrics_end || 0);
+}
+
 // 這筆歌詞「不像」你的歌的程度：數字越小越可能是對的
 //   有時間軸的比只有文字的好；長度越接近你的歌越好（差幾秒就加幾分）
 export function matchScore(item, duration) {
@@ -19,16 +27,23 @@ export function matchScore(item, duration) {
   if (!item.synced) {
     score += 1000;
   }
-  if (duration && item.duration) {
-    score += Math.abs(item.duration - duration);
+  const length = realLength(item);
+  if (duration && length) {
+    score += Math.abs(length - duration);
   } else {
     score += 500;  // 不知道長度，沒辦法比
   }
   return score;
 }
 
+// 排法：先照「哪一種問法找到的」（found_by，0 = 最貼近你打的歌名、歌手，
+//   後面的可能是同名的別首歌），同一種裡面再照長度
 export function sortResults(results, duration) {
   results.sort(function (a, b) {
+    const queryDifference = (a.found_by || 0) - (b.found_by || 0);
+    if (queryDifference !== 0) {
+      return queryDifference;
+    }
     return matchScore(a, duration) - matchScore(b, duration);
   });
   return results;
@@ -58,10 +73,21 @@ function previewText(item) {
 // 長度：跟你的歌差不多就打個綠勾；差很多寫「長 60 秒」「短 60 秒」
 const SAME_LENGTH = 2;   // 差幾秒以內算一樣長
 
-function lengthHtml(item, duration) {
+// 標的長度；歌詞最後一句比它還晚（標錯了）就在後面多寫「歌詞到 4:41」
+function labelHtml(item) {
   let html = formatTime(item.duration);
-  if (duration && item.duration) {
-    const difference = Math.round(item.duration - duration);
+  if ((item.lyrics_end || 0) > (item.duration || 0) + SAME_LENGTH) {
+    html += ' <span class="warn-text" title="' + t('標的長度不對，最後一句歌詞比它還晚') + '">' +
+      t('歌詞到 {time}', { time: formatTime(item.lyrics_end) }) + '</span>';
+  }
+  return html;
+}
+
+function lengthHtml(item, duration) {
+  let html = labelHtml(item);
+  const length = realLength(item);
+  if (duration && length) {
+    const difference = Math.round(length - duration);
     if (Math.abs(difference) <= SAME_LENGTH) {
       html += ' <span class="ok-text" title="' + t('跟你的歌一樣長') + '">' + icon('check') + '</span>';
     } else if (difference > 0) {
@@ -219,7 +245,7 @@ export function resultsHtml(results, duration, chosenIndex, canListen) {
       details.push(escapeHtml(item.album));
     }
     if (hasMatch) {
-      details.push(formatTime(item.duration));
+      details.push(labelHtml(item));
     } else {
       details.push(lengthHtml(item, duration));
     }

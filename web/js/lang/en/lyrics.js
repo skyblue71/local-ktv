@@ -132,6 +132,8 @@ export const LYRICS = {
   '跟你的歌一樣長': 'Same length as your song',
   '長 {seconds} 秒': '{seconds} s longer',
   '短 {seconds} 秒': '{seconds} s shorter',
+  '標的長度不對，最後一句歌詞比它還晚': 'The listed length is wrong: the last line comes after it',
+  '歌詞到 {time}': 'lyrics run to {time}',
   '整首比大部分版本早 {seconds} 秒': 'The whole song is {seconds} s earlier than most versions',
   '整首比大部分版本晚 {seconds} 秒': 'The whole song is {seconds} s later than most versions',
   '有 {count} 句時間跟大部分版本不一樣': '{count} line(s) are timed differently from most versions',

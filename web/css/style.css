@@ -3429,7 +3429,10 @@ input.chart-scroll::-moz-range-thumb {
   }
 }
 
-/* 開始前的 3、2、1：數字放大跳出來時會超出框框，所以框框不要出現捲動條 */
+/* 短短的訊息（載入中、開啟麥克風中、開始前的 3、2、1）不用捲。
+   它們裡面有東西在轉、在放大（轉圈圈、跳出來的數字），會超出框框一點點；
+   框框能捲的話就會冒出捲動條，所以放這些訊息的時候不讓框框捲 */
+.overlay-box:has(.loading-text),
 .overlay-box:has(.countdown-area) {
   overflow: visible;
 }

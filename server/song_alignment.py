@@ -211,7 +211,7 @@ def fix_sections(raw_lines, all_tokens, times, first_of, syllable_counts, second
                  emission, notes, heard, hop, duration):
     """
     每一句放到歌手真的唱的地方、找出影片沒唱的句子。會直接改 times（每一行的開始時間）。
-    syllable_counts：每一行有幾個音節；seconds_per_syllable：一個音節最快唱幾秒（lyrics_builder.TOGETHER_SYLLABLE）
+    syllable_counts：每一行有幾個音節；seconds_per_syllable：這首歌一個音節最快唱幾秒（lyrics_builder.fastest_syllable）
     回傳 (搬了哪幾段, 拿掉哪幾行)：
       搬了：[{"first_row": 第一行, "lines": 幾句, "from": 原本的時間, "to": 搬過去的時間, "move": 秒}]
             （連著一起搬的句子算一段，給畫面上的提示用）

@@ -32,9 +32,11 @@ def split_singer(text):
     return SINGER_MARKS[mark], text[match.end():]
 
 
-TOGETHER_SYLLABLE = 0.1  # 歌詞檔給一句的時間（到下一句開始）平均每個音節不到這麼多秒（一秒 10 個音節，唱不完）：
+TOGETHER_RATIO = 0.25    # 歌詞檔給一句的時間（到下一句開始）平均每個音節的秒數，不到「這首歌平常」的這麼多倍，就是唱不完：
                          # 這句跟下一句是一起唱的（和聲、翻譯放在同一個時間），兩句一起出現、一起填色
-                         #（實測正常的歌最快是每個音節 0.15 秒）
+                         # 「平常」= 這首歌每一句的中位數，所以整首都很快的歌（rap、講話一秒 12 個音節）不會被當成一起唱
+                         #（28 首實測：分開唱的句子，最快的是那首歌平常的 0.36 倍；
+                         #   兩句只差 0.4 秒那種真的一起唱的，大約是平常的 0.1 倍）
 # 整首歌詞固定早／晚：網站上的歌詞常常整首都早 1～2 秒（例如翻唱版用了原版的時間）
 SHIFT_LOW = -1.5       # 最多往前移幾秒
 SHIFT_HIGH = 3.5       # 最多往後移幾秒
@@ -167,26 +169,50 @@ def estimate_shift(raw_lines, notes, offset, duration=0):
     return chosen_shift
 
 
-def find_together(raw_lines, syllable_counts):
+def can_pair(raw_lines, syllable_counts, index):
+    """第 index 行跟下一行能不能比「時間夠不夠唱」：兩句都有字、都沒有逐字時間（有的話它自己的時間就是準的）"""
+    if index + 1 >= len(raw_lines):
+        return False
+    line = raw_lines[index]
+    after = raw_lines[index + 1]
+    both_text = line["text"] != "" and after["text"] != ""
+    no_words = not line["words"] and not after["words"]
+    return both_text and no_words and syllable_counts[index] > 0
+
+
+def fastest_syllable(raw_lines, syllable_counts):
     """
-    歌詞檔給一句的時間（到下一句開始）太短、根本唱不完（平均每個音節不到 TOGETHER_SYLLABLE 秒），
+    這首歌一個音節最快唱幾秒：比這個還快就是唱不完。
+    = 這首歌平常的速度（每一句「到下一句開始的時間 ÷ 音節數」的中位數）× TOGETHER_RATIO。
+    沒有句子可以算就回傳 0
+    """
+    speeds = []
+    for index in range(len(raw_lines)):
+        if can_pair(raw_lines, syllable_counts, index):
+            gap = raw_lines[index + 1]["time"] - raw_lines[index]["time"]
+            speeds.append(gap / syllable_counts[index])
+    if len(speeds) == 0:
+        return 0
+    speeds.sort()
+    return speeds[len(speeds) // 2] * TOGETHER_RATIO
+
+
+def find_together(raw_lines, syllable_counts, seconds_per_syllable):
+    """
+    歌詞檔給一句的時間（到下一句開始）太短、根本唱不完（平均每個音節不到 seconds_per_syllable 秒），
     例如兩句只差 0.4 秒：「[00:21.46] 主唱的句子」「[00:21.89] （和聲）」：
     這句跟下一句是一起唱的（和聲、兩個人一起唱、原文和翻譯放在同一個時間），
     兩句要一起出現、一起填色，不要一句快速閃過去再換下一句。
-    畫面上一次只放得下兩句，所以最多兩句一組。有逐字時間的句子不算（它自己的時間就是準的）。
-    syllable_counts：每一行有幾個音節
+    畫面上一次只放得下兩句，所以最多兩句一組。
+    syllable_counts：每一行有幾個音節；seconds_per_syllable：fastest_syllable 算出來的
     回傳 {第一句是第幾行: 第二句是第幾行, ...}
     """
     together = {}
     index = 0
     while index + 1 < len(raw_lines):
-        line = raw_lines[index]
-        after = raw_lines[index + 1]
-        both_text = line["text"] != "" and after["text"] != ""
-        no_words = not line["words"] and not after["words"]
-        if both_text and no_words and syllable_counts[index] > 0:
-            gap = after["time"] - line["time"]
-            if gap < syllable_counts[index] * TOGETHER_SYLLABLE:
+        if can_pair(raw_lines, syllable_counts, index):
+            gap = raw_lines[index + 1]["time"] - raw_lines[index]["time"]
+            if gap < syllable_counts[index] * seconds_per_syllable:
                 together[index] = index + 1
                 index += 2
                 continue
@@ -384,7 +410,8 @@ def build_lyrics(lrc_text, notes, duration, offset_ms=0, auto_align=True, heard=
         syllable_counts.append(total_syllables(tokens))
 
     # 時間近到唱不完的兩句：一起唱（一起出現、一起填色）
-    together = find_together(raw_lines, syllable_counts)
+    seconds_per_syllable = fastest_syllable(raw_lines, syllable_counts)
+    together = find_together(raw_lines, syllable_counts, seconds_per_syllable)
     first_of = second_to_first(together)
 
     # 1. 這份歌詞大概在哪裡：歌詞檔的時間＋整體偏移，再自動修正整首早晚、整段搬家
@@ -410,7 +437,7 @@ def build_lyrics(lrc_text, notes, duration, offset_ms=0, auto_align=True, heard=
         # MV 中間插了劇情、影片是剪短的版本 → 整段搬到歌手真的唱的地方；影片沒唱的句子拿掉（song_alignment.py）
         if emission is not None:
             moved_sections, absent_rows = song_alignment.fix_sections(
-                raw_lines, all_tokens, times, first_of, syllable_counts, TOGETHER_SYLLABLE,
+                raw_lines, all_tokens, times, first_of, syllable_counts, seconds_per_syllable,
                 emission, notes, heard, hop, duration)
             first_row = None
             for index in range(len(raw_lines)):

@@ -5,7 +5,9 @@
   1. quietParts.js 的 applyQuietSetting：照你的設定（清掉小聲雜音 quietDb）挑出要清的段落，句尾清掉的那一句提早結束
   2. lyricNotes.js 的 notesInLyrics：只留字在唱的時間（每個字開始～結束）裡的部分，落在要清的段落裡的部分剪掉
   3. scorer.js 的 isUnheardNote：瀏覽器的耳朵連原唱都聽不太到的音，不顯示
-  4. trimRange.js 的 notesInRange：只留裁切範圍裡的
+  4. talkBars.js 的 addTalkBars：有字、沒有評分條的地方（講話、rap）補上只看有沒有出聲的評分條
+  5. lineEnds.js 的 endLinesAtLastBar：一句最後一條評分條結束，這一句就算唱完（句子和字提早結束）
+  6. trimRange.js 的 notesInRange：只留裁切範圍裡的
   （syllableBars.js 照字切開評分條，只是把一條切成幾條，健檢不用）
   你修過譜（chart.json）的話，遊戲直接用你的譜。
 
@@ -29,11 +31,22 @@ def read_js_number(relative_path, name):
     return float(found.group(1))
 
 
+def read_js_flag(relative_path, name):
+    """從 JS 檔讀設定預設值「名字: true,」或「名字: false,」"""
+    with open(os.path.join(WEB_JS, relative_path), encoding="utf8") as file:
+        text = file.read()
+    found = re.search(r"\b" + name + r"\s*:\s*(true|false)", text)
+    if found is None:
+        raise ValueError(relative_path + " 裡找不到 " + name)
+    return found.group(1) == "true"
+
+
 SHORTEST = read_js_number(os.path.join("game", "lyricNotes.js"), "SHORTEST")
 OLD_FORMAT_DB = read_js_number(os.path.join("game", "quietParts.js"), "OLD_FORMAT_DB")
 UNHEARD_LIMIT = read_js_number(os.path.join("game", "scorer.js"), "UNHEARD_LIMIT")
 CONTOUR_HOP = read_js_number(os.path.join("game", "scorer.js"), "CONTOUR_HOP")
 DEFAULT_QUIET_DB = read_js_number("settings.js", "quietDb")
+DEFAULT_TALK_BARS = read_js_flag("settings.js", "talkBars")
 
 
 def read_part(part):
@@ -195,6 +208,106 @@ def fill_missed(notes, pitch, lines, quiet_db):
     return result
 
 
+def add_talk_bars(bars, pitch, lines, quiet):
+    """
+    跟 talkBars.js 的 addTalkBars 一樣：字正在唱、卻沒有評分條的地方（講話、rap、喊叫，量不到穩定的音高），
+    補上「只看有沒有出聲」的評分條（"f": 1）。回傳補好的清單（不改原本的）
+      bars：已經排好、會顯示的評分條；quiet：要清掉的段落 [(開始, 結束), ...]
+    """
+    heard = pitch.get("heard")
+    if not heard:
+        return bars
+    size = len(heard)
+
+    def mark(grid, start, end, value):
+        first = max(0, js_round(start / CONTOUR_HOP))
+        last = min(size, js_round(end / CONTOUR_HOP))
+        for index in range(first, last):
+            grid[index] = value
+
+    # 字正在唱的格子（要清掉的小聲段落不算）、已經有評分條的格子
+    inside = [False] * size
+    for line in lines:
+        for token in line.get("tokens", []):
+            if token["syl"] > 0 and token["end"] > token["start"]:
+                mark(inside, token["start"], token["end"], True)
+    for start, end in quiet:
+        mark(inside, start, end, False)
+    covered = [False] * size
+    for bar in bars:
+        mark(covered, bar["s"], bar["e"], True)
+
+    added = []
+    begin = None
+    for index in range(size + 1):
+        is_open = index < size and inside[index] and not covered[index]
+        if is_open and begin is None:
+            begin = index
+        if not is_open and begin is not None:
+            start, end = begin, index
+            begin = None
+            if (end - start) * CONTOUR_HOP < SHORTEST:
+                continue
+            # 瀏覽器的耳朵完全聽不到原唱出聲：沒辦法評，不補
+            values = sorted(heard[k] for k in range(start, end) if heard[k] != 0)
+            if len(values) == 0:
+                continue
+            # 畫在哪個高度：耳朵聽到的中位數，搬到最接近旁邊那條評分條的八度
+            pitch_value = js_round(values[len(values) // 2] / 10)
+            neighbor = nearest_bar(bars, start * CONTOUR_HOP, end * CONTOUR_HOP)
+            if neighbor is not None:
+                pitch_value -= 12 * js_round((pitch_value - neighbor["p"]) / 12)
+            added.append({"s": start * CONTOUR_HOP, "e": end * CONTOUR_HOP, "p": pitch_value, "f": 1})
+    if len(added) == 0:
+        return bars
+    return sorted(list(bars) + added, key=lambda bar: bar["s"])
+
+
+def end_lines_at_last_bar(lines, bars):
+    """
+    跟 lineEnds.js 的 endLinesAtLastBar 一樣：一句最後一條評分條結束了，這一句就算唱完。
+    超過那個時間的字跟著提早結束（字開始的時間不動）；整句都沒有評分條的不動。回傳整理好的句子（不改原本的）
+    bars：會顯示的評分條（瀏覽器聽不太到原唱的已經拿掉）
+    """
+    result = []
+    for line in lines:
+        last = None
+        for bar in bars:
+            if bar["e"] <= line["start"] or bar["s"] >= line["end"]:
+                continue
+            if last is None or bar["e"] > last:
+                last = bar["e"]
+        if last is None or last >= line["end"]:
+            result.append(line)
+            continue
+        tokens = []
+        last_start = line["start"]
+        for token in line.get("tokens", []):
+            copy = dict(token)
+            if copy["end"] > last:
+                copy["end"] = max(copy["start"], last)
+            if copy["syl"] > 0 and copy["start"] > last_start:
+                last_start = copy["start"]
+            tokens.append(copy)
+        new_line = dict(line)
+        new_line["end"] = min(line["end"], max(line["start"] + 0.5, last, last_start))
+        new_line["tokens"] = tokens
+        result.append(new_line)
+    return result
+
+
+def nearest_bar(bars, start, end):
+    """離 start～end 這段時間最近的評分條（沒有評分條回傳 None）"""
+    best = None
+    best_gap = None
+    for bar in bars:
+        gap = max(bar["s"] - end, start - bar["e"], 0)
+        if best_gap is None or gap < best_gap:
+            best = bar
+            best_gap = gap
+    return best
+
+
 def js_round(value):
     """跟 JavaScript 的 Math.round 一樣（.5 往上；Python 的 round 是四捨六入五成雙，會差一格）"""
     import math
@@ -259,10 +372,13 @@ def trim_range(meta):
     return start, end
 
 
-def game_bars(lyrics, pitch, meta, chart_notes=None, quiet_db=None):
+def game_bars(lyrics, pitch, meta, chart_notes=None, quiet_db=None, talk_bars=None):
     """
     回傳 (評分條 [{"s", "e", "p"}, ...], 整理好的句子)：跟唱歌畫面上看到的一樣（照字切開那一步不做）
+    talk_bars：講話的地方要不要補「只看有沒有出聲」的評分條（有 "f": 1 的那些）；不給就照設定的預設值
     """
+    if talk_bars is None:
+        talk_bars = DEFAULT_TALK_BARS
     if quiet_db is None:
         quiet_db = DEFAULT_QUIET_DB
     lines, quiet = apply_quiet_setting(lyrics, quiet_db)
@@ -287,6 +403,9 @@ def game_bars(lyrics, pitch, meta, chart_notes=None, quiet_db=None):
                     candidates.append({"s": kept_start, "e": kept_end, "p": note["p"]})
         heard = pitch.get("heard")
         candidates = [bar for bar in candidates if not is_unheard(heard, bar["s"], bar["e"])]
+        if talk_bars:
+            candidates = add_talk_bars(candidates, pitch, lines, quiet)
+        lines = end_lines_at_last_bar(lines, candidates)
 
     bars = []
     for bar in candidates:

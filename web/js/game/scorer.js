@@ -72,6 +72,7 @@ export class Scorer {
   //   跟著原唱的滑音、轉音唱也算對；測試模式（原唱自己唱）也不會被另一隻耳朵挑毛病
   // 你在「修譜」畫的或改過的音（note.u = 1）：你畫的就算——
   //   不會因為 AI 聽不到而拿掉、只照你畫的音高比、整個音的長度都要唱
+  // 講話的地方補的評分條（note.f = 1，talkBars.js）：只看你有沒有出聲，不看音高
   constructor(notes, options, contour, heard) {
     this.difficulty = DIFFICULTY[options.difficulty] || DIFFICULTY.normal;
     this.octaveFree = options.octaveFree;
@@ -82,7 +83,8 @@ export class Scorer {
     this.hiddenCount = 0;   // 因為瀏覽器聽不到原唱而拿掉的音符數
     for (const note of notes) {
       const manual = note.u === 1;
-      if (!manual && isUnheardNote(this.heard, note.s, note.e)) {
+      const free = note.f === 1;
+      if (!manual && !free && isUnheardNote(this.heard, note.s, note.e)) {
         this.hiddenCount++;
         continue;
       }
@@ -95,6 +97,7 @@ export class Scorer {
         e: note.e,
         p: note.p,
         manual: manual,  // 你在修譜畫的或改過的
+        free: free,      // 講話的地方：只看有沒有出聲，不看音高
         needed: needed,  // 要唱對多久才算滿分
         hit: 0,          // 唱對的時間（秒，加權）
         sung: 0,         // 有出聲的時間
@@ -201,6 +204,15 @@ export class Scorer {
       return null;
     }
     return this.contourDiff(time, midi);
+  }
+
+  // 這個音符在 time 唱 midi 這個音高的準確度（0~1）
+  //   講話的地方（note.free）：有出聲就算對，不看音高
+  noteAccuracy(note, time, midi) {
+    if (note.free) {
+      return 1;
+    }
+    return this.bestAccuracy(this.foldOctave(midi - note.p), this.originalDiff(note, time, midi));
   }
 
   // 準確度（0~1）：跟音符比，也跟原唱曲線比，取比較好的
@@ -316,9 +328,13 @@ export class Scorer {
 
     // ---- 評分：用原本的音高（不平滑）----
     if (midi !== null && note !== null && !note.judged) {
-      const diff = this.foldOctave(midi - note.p);          // 跟音符差多少
-      const toOriginal = this.originalDiff(note, time, midi);   // 跟原唱差多少
-      const accuracy = this.bestAccuracy(diff, toOriginal);
+      let diff = this.foldOctave(midi - note.p);          // 跟音符差多少
+      let toOriginal = this.originalDiff(note, time, midi);   // 跟原唱差多少
+      const accuracy = this.noteAccuracy(note, time, midi);
+      if (note.free) {
+        diff = 0;            // 講話的地方不看音高：不留音高差（穩定度、顫音、技巧都不算它）
+        toOriginal = null;
+      }
       note.hit += accuracy * step;
       note.sung += step;
       // d：跟音符差多少（看顫音、技巧用）；r：跟原唱差多少（看穩定度用）
@@ -339,7 +355,7 @@ export class Scorer {
       shown = smooth.m;
       jump = smooth.jump;
       if (note !== null) {
-        shownAccuracy = this.bestAccuracy(this.foldOctave(shown - note.p), this.originalDiff(note, time, shown));
+        shownAccuracy = this.noteAccuracy(note, time, shown);
       }
     }
 

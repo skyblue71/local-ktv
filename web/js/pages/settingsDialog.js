@@ -74,6 +74,10 @@ export async function openSettingsDialog(options) {
       t('數字越小，清掉越多；太小會清到真的拉長音。0 = 不清\n\n') +
       t('會影響：全部歌的評分條、句尾的字幕會早一點結束。\n') +
       t('不會影響：你修過譜的歌、檔案本身。\n唱到一半改的話，重新進入這首歌才生效')), 'set-quiet', 0, 30, 1) +
+    switchRow(t('講話也評分') + helpTip(t('講話、rap、喊叫的地方沒有固定的音高，原本不會有評分條。\n') +
+      t('打開：這些地方也畫評分條（虛線、空心），只看有沒有出聲，不看音高。\n關掉：這些地方不畫評分條。\n\n') +
+      t('會影響：這些地方的評分條和分數（比唱的好拿分）。\n') +
+      t('不會影響：字幕、一般的評分條、你修過譜的歌。\n唱到一半改的話，重新進入這首歌才生效')), 'set-talk') +
     '      </div>' +
     '    </section>' +
     '    <section class="settings-section tone-cyan">' +
@@ -139,6 +143,7 @@ export async function openSettingsDialog(options) {
   box.querySelector('#set-octave').checked = settings.octaveFree;
   box.querySelector('#set-latency').value = settings.latencyMs;
   box.querySelector('#set-quiet').value = settings.quietDb;
+  box.querySelector('#set-talk').checked = settings.talkBars;
   box.querySelector('#set-ruby').checked = settings.showRuby;
   box.querySelector('#set-roma').checked = settings.showRoma;
   box.querySelector('#set-chinese').value = settings.chineseStyle;
@@ -191,6 +196,7 @@ export async function openSettingsDialog(options) {
     settings.octaveFree = box.querySelector('#set-octave').checked;
     settings.latencyMs = Number(box.querySelector('#set-latency').value);
     settings.quietDb = Number(box.querySelector('#set-quiet').value);
+    settings.talkBars = box.querySelector('#set-talk').checked;
     settings.showRuby = box.querySelector('#set-ruby').checked;
     settings.showRoma = box.querySelector('#set-roma').checked;
     settings.chineseStyle = box.querySelector('#set-chinese').value;

@@ -159,8 +159,8 @@ export function countTechniques(notes) {
   const result = { scoop: 0, kobushi: 0, fall: 0 };
   for (let i = 0; i < notes.length; i++) {
     const note = notes[i];
-    // 只算唱對的音符（跳過的、MISS 的不算）
-    if (note.skipped || note.grade === '' || note.grade === 'MISS') {
+    // 只算唱對的音符（跳過的、MISS 的不算；講話的地方不看音高，也不算）
+    if (note.skipped || note.free || note.grade === '' || note.grade === 'MISS') {
       continue;
     }
     const points = cleanPoints(note);

@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS = {
                            //   21 首歌實測：真的在唱的拉長音最多小 4.1 dB；
                            //   一個字尾的 s 小 23.6 dB；其他雜音小 12.5～28 dB
                            //   → 預設 12（耳朵聽起來不到一半大聲；每小 10 dB 聽起來大約小一半）。改了下次進唱歌、修譜就生效（game\quietParts.js）
+  talkBars: true,          // 講話、rap、喊叫的地方（歌詞有字、有人聲，但量不到穩定的音高）也畫評分條：
+                           //   這種評分條只看有沒有出聲，不看音高（game\talkBars.js）
   showRuby: true,          // 日文：漢字上方的假名
   showRoma: true,          // 日文/韓文：下方的羅馬音
   chineseStyle: 'zhuyin',  // 中文：'zhuyin' 上方注音 / 'pinyin' 下方拼音 / 'none' 不顯示

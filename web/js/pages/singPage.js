@@ -22,9 +22,11 @@ import { MvBackground } from '../game/mvBackground.js';
 import { frequencyToMidi } from '../game/noteNames.js';
 import { PitchView } from '../game/pitchView.js';
 import { Scorer } from '../game/scorer.js';
+import { endLinesAtLastBar } from '../game/lineEnds.js';
 import { notesInLyrics } from '../game/lyricNotes.js';
 import { applyQuietSetting } from '../game/quietParts.js';
 import { splitAtSyllables } from '../game/syllableBars.js';
+import { addTalkBars } from '../game/talkBars.js';
 import { fillMissed } from '../game/twoEars.js';
 import { lyricsInRange, notesInRange, trimEnd, trimStart } from '../game/trimRange.js';
 import { t } from '../i18n.js';
@@ -127,13 +129,7 @@ export async function enter(app, songId, query) {
     page.trimStart = trimStart(page.song);
     page.trimEnd = trimEnd(page.song, page.player.getDuration());
     page.player.seek(page.trimStart);
-    const lyrics = lyricsInRange(lyricsData.lyrics, page.trimStart, page.trimEnd);
 
-    // 畫面
-    page.pitchView = new PitchView(document.getElementById('pitch-canvas'), page.pitch);
-    // 音高圖最下面那排跟著音樂跳的柱子（只是好看：在旁邊聽音樂，不會改到聲音）
-    page.spectrum = new MusicSpectrum(context, page.player.master);
-    page.lyricsView = new LyricsView(document.getElementById('lyrics-area'), lyrics, page.settings);
     // 要唱的音符：
     //   你修過譜（修譜頁）→ 用你修的譜，你畫的就算
     //   沒修過 → AI 的譜：
@@ -144,10 +140,24 @@ export async function enter(app, songId, query) {
     //     0. AI 唱到一半漏掉、瀏覽器的耳朵聽得到的地方先補上 → twoEars.js
     const filled = fillMissed(page.pitch.notes, page.pitch, lyricsData.lyrics, page.settings.quietDb);
     let sung = splitAtSyllables(notesInLyrics(filled, lyricsData.lyrics), lyricsData.lyrics);
+    //     4. 講話、rap 的地方（有字、有人聲、量不到音高）補上只看有沒有出聲的評分條 → talkBars.js
+    if (page.settings.talkBars) {
+      sung = addTalkBars(sung, page.pitch, lyricsData.lyrics);
+    }
+    //     5. 一句最後一條評分條結束了，這一句就算唱完，字幕不再繼續填 → lineEnds.js
+    let shownLyrics = endLinesAtLastBar(lyricsData.lyrics, sung, page.pitch.heard);
     if (chart.notes) {
       sung = chart.notes;
+      shownLyrics = lyricsData.lyrics;
     }
     page.notes = notesInRange(sung, page.trimStart, page.trimEnd);
+
+    // 畫面
+    page.pitchView = new PitchView(document.getElementById('pitch-canvas'), page.pitch);
+    // 音高圖最下面那排跟著音樂跳的柱子（只是好看：在旁邊聽音樂，不會改到聲音）
+    page.spectrum = new MusicSpectrum(context, page.player.master);
+    const lyrics = lyricsInRange(shownLyrics, page.trimStart, page.trimEnd);
+    page.lyricsView = new LyricsView(document.getElementById('lyrics-area'), lyrics, page.settings);
     page.singers = [{
       name: page.settings.playerName,
       microphone: null,

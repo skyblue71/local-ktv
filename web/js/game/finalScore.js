@@ -1,6 +1,6 @@
 // 唱完之後的「總分」計算。
 // 五個項目（0~100），再按比例加起來：
-//   音準   55%  每個音符唱對的比例
+//   音準   55%  每個音符唱對的比例（講話的地方：有出聲的比例）
 //   節奏   15%  開口的時間準不準
 //   穩定   10%  長音有沒有飄
 //   表現力 10%  顫音、音量起伏
@@ -122,12 +122,15 @@ export function calculateFinalScore(scorer) {
       rhythmScores.push(0);
     }
 
+    // 講話的地方（只看有沒有出聲）沒有音高可以看，穩定度、顫音都不算它
+    const hasPitch = !note.free;
+
     // 穩定度：唱對的長音有沒有飄
     //（只算唱對的：一直哼同一個音很「穩」，但音不對，不算穩定）
-    if (duration >= STABLE_MIN_DURATION) {
+    if (hasPitch && duration >= STABLE_MIN_DURATION) {
       hasLongNote = true;
     }
-    if (isHit) {
+    if (hasPitch && isHit) {
       const stability = noteStability(note);
       if (stability !== null) {
         stabilityScores.push(stability);
@@ -135,7 +138,7 @@ export function calculateFinalScore(scorer) {
     }
 
     // 顫音：0.6 秒以上的長音
-    if (duration >= 0.6) {
+    if (hasPitch && duration >= 0.6) {
       longNotes++;
       if (hasVibrato(note)) {
         vibratoCount++;

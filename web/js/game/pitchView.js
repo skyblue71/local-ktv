@@ -15,6 +15,7 @@ import { midiToName } from './noteNames.js';
 
 const SECONDS_BEFORE = 1.8;   // 現在時間線左邊顯示幾秒
 const SECONDS_AFTER = 4.5;    // 右邊顯示幾秒
+const FREE_DASH = [4, 3];     // 講話的評分條（只看有沒有出聲）的虛線邊：畫 4 點、空 3 點
 const NOW_POSITION = 0.28;    // 現在時間線在畫面寬度的哪裡
 const BALL_EDGE = 8;          // 你的音高球最多到畫面邊緣往內幾像素（唱太高、太低時停在邊上）
 
@@ -266,17 +267,26 @@ export class PitchView {
       }
 
       // 還沒打分數的：半透明的長條，有一圈細邊。正在唱的那一條亮起來
+      //   講話的地方（note.free，只看有沒有出聲）：空心、虛線邊，看得出跟一般的不一樣
       if (singingNow) {
         ctx.fillStyle = 'rgba(255,255,255,0.1)';
         roundRect(ctx, x1 - 4, y - 4, width + 8, barHeight + 8, radius + 4);
         ctx.fill();
       }
-      ctx.fillStyle = singingNow ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)';
       roundRect(ctx, x1, y, width, barHeight, radius);
-      ctx.fill();
+      if (note.free) {
+        ctx.setLineDash(FREE_DASH);
+      } else {
+        ctx.fillStyle = singingNow ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.18)';
+        ctx.fill();
+      }
       ctx.lineWidth = 1;
       ctx.strokeStyle = singingNow ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)';
+      if (note.free && !singingNow) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';   // 沒有填色，邊要亮一點才看得到
+      }
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // 唱到一半：用金色填滿「唱對的部分」（跟評分器用同一個「要唱多久」），最前面一顆亮點
       if (!note.judged && note.hit > 0) {

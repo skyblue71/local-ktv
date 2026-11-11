@@ -10,13 +10,14 @@ A karaoke app that runs on your own PC and scores your singing. You add the song
 
 - **Add your own songs**: music files on your PC (mp3, m4a, flac, wav, mp4…) or a YouTube link
 - **AI vocal separation**: splits each song into a backing track and the original vocals. The original vocals can be turned on as a guide at any time
-- **Live scoring**: pitch, rhythm, stability, expression and completion, plus bonus points for techniques
+- **Live scoring**: pitch, rhythm, stability, expression and completion, plus bonus points for techniques. Rap and spoken parts get bars too
 - **Word-by-word lyrics**: words light up as they are sung. Japanese shows kana and romaji, Chinese shows Zhuyin or Pinyin
 - **Automatic lyrics**: finds timed lyrics on LRCLIB and lines them up with where the singer actually sings
 - **MV background**: songs with video play the MV behind the lyrics
 - **Edit it yourself**: drag the pitch bars and the timing of each word with the mouse
 - **Monitor, reverb, recording**: listen again after singing, or download the recording as MP3
 - **Chinese and English interface**: switch in Settings
+- **Updates itself**: when a newer version is out, it asks before it starts. Your songs and scores are not touched
 
 ## Requirements
 
@@ -57,7 +58,8 @@ These models and tools each have their own license. The Meta MMS model is CC-BY-
 ## Privacy
 
 - The server only listens on `127.0.0.1`. Other people cannot connect to it.
-- Only two features go online, and only when you click them: searching for lyrics, and adding a song from YouTube.
+- Only three things go online: searching for lyrics, adding a song from YouTube, and checking GitHub for a newer version at startup.
+- To stay offline at startup, set `CHECK_UPDATE` to `no` in `start.bat`.
 - Your songs, recordings and scores are stored only in the `data\` folder on your PC. Nothing is sent anywhere.
 
 ## License

@@ -54,6 +54,8 @@
 
 這些模型和工具各有自己的授權，使用前請看它們各自的官方頁面。其中 Meta MMS 模型是 CC-BY-NC 4.0，**不能用在商業用途**，所以這個程式也只適合非商業使用。
 
+這個專案自己的程式碼是 MIT 授權，見 [LICENSE](LICENSE)。
+
 有幾個檔案是照別人公開的程式寫的，原作者的授權聲明放在 [第三方授權.md](第三方授權.md)。
 
 模型檔下載後會比對大小和 SHA256（寫在 `server\config.py`）；PyTorch 格式的模型一律用「只讀數字」的安全模式載入。
@@ -93,6 +95,7 @@ server/                   後端（Python，FastAPI）
   lyrics_builder.py       歌詞 → 字幕
   song_alignment.py       影片跟歌詞版本不一樣時，整段搬到歌手唱的地方
   word_store.py / chart_store.py   你調過的字、你修過的譜
+  recording_export.py     唱完下載錄音：轉成 MP3
 web/                      前端（純 JavaScript，沒有框架）
   js/pages/               每一頁的畫面
   js/game/                評分、字幕、評分條、唱歌畫面

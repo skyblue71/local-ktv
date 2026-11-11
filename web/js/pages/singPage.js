@@ -917,7 +917,7 @@ async function finish() {
   overlay.classList.remove('hidden');
   showResult(document.getElementById('overlay-box'), result, {
     recordingUrl: page.recordingUrl,
-    fileName: page.song.title + '-' + Math.round(result.total) + '分.webm',
+    recordingName: page.song.title + '-' + Math.round(result.total) + '分',
     saveMessage: saveMessage,
     isNewBest: isNewBest,
     onRetry: restart,

@@ -65,5 +65,15 @@ YOUTUBE_MAX_HEIGHT = 1080
 # 借用電腦裡的 Node.js 通過 YouTube 驗證，最低要幾版（yt-dlp 官方要求 22 以上）
 NODE_MIN_VERSION = 22
 
+# 唱完下載錄音的格式（結果畫面的下載按鈕就是照這張表排的，一列一顆按鈕）
+#   id        ：格式的代號，也是下載檔案的副檔名
+#   label     ：按鈕上的字（前面會自動加「下載」）
+#   media_type：告訴瀏覽器這是什麼檔案
+#   ffmpeg    ：轉檔時給 ffmpeg 的參數
+#               mp3 的 "-q:a" 是音質，0 最好、9 最差，數字越小檔案越大
+RECORDING_FORMATS = [
+    {"id": "mp3", "label": "MP3", "media_type": "audio/mpeg", "ffmpeg": ["-c:a", "libmp3lame", "-q:a", "2"]},
+]
+
 # 程式啟動時，確保資料夾存在
 os.makedirs(SONGS_DIR, exist_ok=True)

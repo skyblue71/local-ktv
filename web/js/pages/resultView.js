@@ -1,7 +1,8 @@
 // 唱完的結果畫面：總分、五角形能力圖、各等級數量、錄音。
 
+import * as api from '../api.js';
 import { icon } from '../icons.js';
-import { escapeHtml } from '../ui.js';
+import { escapeHtml, showToast } from '../ui.js';
 
 const AXES = [
   { key: 'pitch', label: '音準' },
@@ -11,15 +12,18 @@ const AXES = [
   { key: 'completion', label: '完成度' },
 ];
 
-// options: { recordingUrl, fileName, saveMessage, isNewBest, onRetry, backUrl }
+// options: { recordingUrl, recordingName, saveMessage, isNewBest, onRetry, backUrl }
+//   recordingName：下載錄音的檔名（不含副檔名，副檔名看選哪種格式）
 export function showResult(container, result, options) {
   let recordingHtml = '';
   if (options.recordingUrl) {
     recordingHtml =
       '<div class="result-recording">' +
       '  <div class="muted small">你的錄音</div>' +
-      '  <audio controls src="' + options.recordingUrl + '"></audio>' +
-      '  <a class="btn btn-small" href="' + options.recordingUrl + '" download="' + escapeHtml(options.fileName) + '">' + icon('download') + ' 下載錄音</a>' +
+      // nodownload：把播放條「⋮」選單裡瀏覽器自己的「下載」拿掉。
+      // 那個下載的是沒轉過的原本檔案（.weba，沒有總長度），要下載請用下面的按鈕
+      '  <audio controls controlslist="nodownload" src="' + options.recordingUrl + '"></audio>' +
+      '  <div class="result-downloads"></div>' +
       '</div>';
   }
 
@@ -65,10 +69,89 @@ export function showResult(container, result, options) {
   const audio = container.querySelector('.result-recording audio');
   if (audio) {
     findRecordingLength(audio);
+    showDownloadButtons(container.querySelector('.result-downloads'), options);
   }
   container.querySelector('#retry-button').addEventListener('click', options.onRetry);
   drawRadar(container.querySelector('#radar-canvas'), result);
   countUp(container.querySelector('#result-total'), result.total);
+}
+
+// 下載錄音的按鈕：每一種格式一顆。
+// 有哪些格式是問伺服器的（server/config.py 的 RECORDING_FORMATS），這裡不用寫。
+async function showDownloadButtons(area, options) {
+  let formats = [];
+  try {
+    formats = await api.getRecordingFormats();
+  } catch (error) {
+    formats = [];
+  }
+  if (!area.isConnected) {
+    return;   // 已經離開結果畫面了
+  }
+
+  // 問不到伺服器：只能直接下載瀏覽器錄的原本檔案
+  if (formats.length === 0) {
+    area.innerHTML =
+      '<a class="btn btn-small" href="' + options.recordingUrl + '" download="' +
+      escapeHtml(options.recordingName + '.webm') + '">' + icon('download') + ' 下載錄音</a>';
+    return;
+  }
+
+  for (const format of formats) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-small';
+    button.innerHTML = icon('download') + ' 下載 ' + escapeHtml(format.label);
+    button.addEventListener('click', function () {
+      downloadRecording(button, format, options);
+    });
+    area.appendChild(button);
+  }
+}
+
+// 按了某一種格式：請伺服器轉檔，轉好就存到電腦
+async function downloadRecording(button, format, options) {
+  const oldHtml = button.innerHTML;
+  button.disabled = true;
+  button.textContent = '轉檔中…';
+  try {
+    const response = await fetch(options.recordingUrl);
+    const original = await response.blob();
+    try {
+      const converted = await api.exportRecording(original, format.id);
+      saveToComputer(converted, options.recordingName + '.' + format.id);
+    } catch (error) {
+      // 轉檔失敗：改給瀏覽器錄的原本檔案，至少拿得到錄音
+      showToast('轉檔失敗，改下載原本的檔案', 'error');
+      saveToComputer(original, options.recordingName + '.' + originalExtension(original));
+    }
+  } finally {
+    button.disabled = false;
+    button.innerHTML = oldHtml;
+  }
+}
+
+// 瀏覽器錄的原本檔案是什麼副檔名（大部分瀏覽器是 webm，少數是 ogg）
+function originalExtension(blob) {
+  if (blob.type.indexOf('ogg') !== -1) {
+    return 'ogg';
+  }
+  return 'webm';
+}
+
+// 把一個檔案存到電腦（跟點下載連結一樣，會進瀏覽器的下載資料夾）
+function saveToComputer(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // 過一陣子再收掉，太早收的話瀏覽器會來不及存
+  setTimeout(function () {
+    URL.revokeObjectURL(url);
+  }, 60000);
 }
 
 // 讓播放條知道錄音總共多長。

@@ -210,3 +210,24 @@ export function getScores(songId) {
 export function addScore(songId, record) {
   return request('POST', songUrl(songId) + '/scores', record);
 }
+
+// ---------- 下載錄音 ----------
+// 錄音可以下載成哪些格式：[{ id, label }]（id 也是副檔名）
+export function getRecordingFormats() {
+  return request('GET', '/api/recording/formats');
+}
+
+// 把錄音交給伺服器轉檔，回傳轉好的檔案（Blob）
+export async function exportRecording(blob, formatId) {
+  const form = new FormData();
+  form.append('file', blob, 'recording');
+  form.append('format', formatId);
+  const response = await fetch('/api/recording/export', { method: 'POST', body: form });
+  if (!response.ok) {
+    const body = await response.json().catch(function () {
+      return {};
+    });
+    throw new Error(body.detail || ('轉檔失敗 ' + response.status));
+  }
+  return response.blob();
+}

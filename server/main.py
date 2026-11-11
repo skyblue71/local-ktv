@@ -11,12 +11,12 @@ import shutil
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from server import (audio_tools, chart_store, cover_tools, job_queue, lyrics_consensus, lyrics_match, lyrics_search,
-                    separator, singing_check, song_store, trim, word_store, youtube_import)
+                    recording_export, separator, singing_check, song_store, trim, word_store, youtube_import)
 from server.config import WEB_DIR
 from server.song_processor import make_lyrics, rebuild_lyrics
 
@@ -501,6 +501,27 @@ def add_score(song_id: str, record: ScoreRecord):
     check_song(song_id)
     score = {"player": record.player, "total": record.total, "details": record.details}
     return song_store.add_score(song_id, score)
+
+
+# ---------- 下載錄音 ----------
+
+@app.get("/api/recording/formats")
+def get_recording_formats():
+    """錄音可以下載成哪些格式（結果畫面的下載按鈕照這個排）"""
+    return recording_export.list_formats()
+
+
+@app.post("/api/recording/export")
+def export_recording(file: UploadFile = File(...), format: str = Form(...)):
+    """把唱完的錄音轉成指定格式再傳回去（會補上總長度；錄音轉完就刪掉，不會留在硬碟）"""
+    export_format = recording_export.find_format(format)
+    if export_format is None:
+        raise HTTPException(status_code=400, detail="沒有這種格式：" + format)
+    try:
+        data = recording_export.export_recording(file.file, export_format)
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error))
+    return Response(content=data, media_type=export_format["media_type"])
 
 
 # ---------- 網頁 ----------

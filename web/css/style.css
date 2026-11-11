@@ -3831,6 +3831,14 @@ input.chart-scroll::-moz-range-thumb {
   height: 36px;
 }
 
+/* 下載錄音的按鈕。放不下時自己換到下一行 */
+.result-downloads {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
 .result .result-actions {
   justify-content: center;
   margin-top: 16px;

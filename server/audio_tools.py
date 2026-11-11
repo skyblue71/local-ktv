@@ -15,19 +15,13 @@ def get_ffmpeg_path():
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def convert_audio(source_path, target_path, sample_rate=44100, channels=2):
-    """把任何音訊/影片檔轉成 WAV（例如 mp3、m4a、mp4 都可以）"""
+def run_ffmpeg(arguments):
+    """叫 ffmpeg 做事。arguments 是要給它的參數（不用寫 ffmpeg 自己）；失敗會丟出錯誤"""
     command = [
         get_ffmpeg_path(),
         "-y",                      # 覆蓋舊檔
         "-loglevel", "error",      # 只顯示錯誤
-        "-i", source_path,
-        "-vn",                     # 不要影像
-        "-ac", str(channels),      # 聲道數
-        "-ar", str(sample_rate),   # 取樣率
-        "-c:a", "pcm_s16le",
-        target_path,
-    ]
+    ] + arguments
     # Windows 上不要跳出黑色視窗
     flags = 0
     if os.name == "nt":
@@ -37,6 +31,18 @@ def convert_audio(source_path, target_path, sample_rate=44100, channels=2):
     if result.returncode != 0:
         message = result.stderr.decode("utf-8", errors="replace")
         raise RuntimeError("音訊轉換失敗：" + message[-400:])
+
+
+def convert_audio(source_path, target_path, sample_rate=44100, channels=2):
+    """把任何音訊/影片檔轉成 WAV（例如 mp3、m4a、mp4 都可以）"""
+    run_ffmpeg([
+        "-i", source_path,
+        "-vn",                     # 不要影像
+        "-ac", str(channels),      # 聲道數
+        "-ar", str(sample_rate),   # 取樣率
+        "-c:a", "pcm_s16le",
+        target_path,
+    ])
 
 
 def has_video_stream(file_path):

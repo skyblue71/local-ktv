@@ -21,7 +21,7 @@ A karaoke app that runs on your own PC and scores your singing. You add the song
 ## Requirements
 
 - Windows 10 / 11
-- [Python](https://www.python.org): tested with 3.12. If your PC already has another version, setup tries it first and shows a warning
+- [Python](https://www.python.org) 3.12 or newer: tested with 3.12. If your PC already has a newer version, setup tries it first and shows a warning
 - An NVIDIA graphics card is recommended: the AI is much faster when adding songs. It works without one, but adding a song is much slower
 - [Node.js 22 or newer](https://nodejs.org) is recommended: better video quality from YouTube. It works without it
 - About 8 GB of disk space and a stable connection (setup downloads about 5.3 GB)

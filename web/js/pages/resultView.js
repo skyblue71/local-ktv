@@ -62,9 +62,35 @@ export function showResult(container, result, options) {
     '  </div>' +
     '</div>';
 
+  const audio = container.querySelector('.result-recording audio');
+  if (audio) {
+    findRecordingLength(audio);
+  }
   container.querySelector('#retry-button').addEventListener('click', options.onRetry);
   drawRadar(container.querySelector('#radar-canvas'), result);
   countUp(container.querySelector('#result-total'), result.total);
+}
+
+// 讓播放條知道錄音總共多長。
+// 瀏覽器錄的檔案裡沒有寫「總共多長」，不處理的話播放條只會顯示 0:00、看不到總長度、也不能拖。
+// 做法：叫它跳到很後面，瀏覽器就會把整個檔案讀過一遍、算出長度；算好再跳回開頭。
+// 這時候沒有在播放，不會出聲音。
+function findRecordingLength(audio) {
+  const FAR_AWAY = 1e101;   // 一個比任何錄音都長的秒數
+  audio.addEventListener('loadedmetadata', function () {
+    if (audio.duration !== Infinity) {
+      return;   // 已經知道長度了，不用處理
+    }
+    function onLengthKnown() {
+      if (audio.duration === Infinity) {
+        return;   // 還沒算好
+      }
+      audio.removeEventListener('durationchange', onLengthKnown);
+      audio.currentTime = 0;
+    }
+    audio.addEventListener('durationchange', onLengthKnown);
+    audio.currentTime = FAR_AWAY;
+  });
 }
 
 // 分數下面的「技巧加分 +X.X」（沒有加分就不顯示）

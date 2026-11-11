@@ -3823,7 +3823,11 @@ input.chart-scroll::-moz-range-thumb {
   background: var(--well);
 }
 
+/* 播放條把這一列剩下的寬度用完（瀏覽器預設只給 300px，進度條會短短一截）；
+   太窄放不下時（240px 以下）自己換到下一行 */
 .result-recording audio {
+  flex: 1 1 240px;
+  min-width: 0;
   height: 36px;
 }
 

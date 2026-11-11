@@ -2,29 +2,86 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 
+rem 畫面上的訊息每一句都有英文和中文。
+rem 注意：if ( ... ) 括號裡的 echo 不能出現半形的括號，會被當成括號的結尾
+
+rem 測過可以用的 Python 版本（有好幾個就用空白隔開，排前面的優先用）
+rem 電腦裡沒有這些版本、但有別的 Python 時，會先用那個試試看，並提醒版本不一樣
+set "TESTED_PYTHON=3.12"
+
 echo ==========================================
-echo   本機KTV：安裝環境（換新電腦時用）
+echo   Local KTV: setup
+echo   本機KTV：安裝環境
 echo ==========================================
+echo This will:
+echo   1. Create a virtual environment .venv (your system Python is not changed)
+echo   2. Install the packages with pip
+echo   3. Download two AI models once (after that the app downloads nothing)
 echo 這個程式會：
 echo   1. 建立虛擬環境 .venv（不會動到系統的 Python）
 echo   2. 用 pip 下載並安裝需要的套件
 echo   3. 下載去人聲模型、認音節模型各一次（之後程式就不再連網下載）
 echo.
-echo 下載來源（都是官方網站）：
-echo   PyTorch：https://download.pytorch.org/whl/cu128 （PyTorch 官方）
-echo   其他套件：https://pypi.org （Python 官方套件庫），清單和版本在 requirements.txt
-echo   去人聲模型 Mel-Band RoFormer（約 913MB）：https://huggingface.co/KimberleyJSN/melbandroformer （模型作者本人帳號）
-echo   認音節模型 MMS（約 1.26GB）：https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt （Meta 官方）
+echo Download sources (all official) / 下載來源（都是官方網站）：
+echo   PyTorch: https://download.pytorch.org/whl/cu128
+echo   Other packages / 其他套件: https://pypi.org  (requirements.txt)
+echo   Vocal separation model / 去人聲模型 Mel-Band RoFormer, 913 MB: https://huggingface.co/KimberleyJSN/melbandroformer
+echo   Syllable model / 認音節模型 MMS, 1.26 GB: https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt
 echo.
-echo 需要先安裝 Python 3.12（https://www.python.org）
-echo 建議也安裝 Node.js 22 以上（https://nodejs.org）：從 YouTube 加歌能拿到比較好的畫質，沒有也能用。
+echo Needs Python (https://www.python.org). Tested with: %TESTED_PYTHON%. If this PC already has Python, it is used first.
+echo 需要 Python，測過的版本：%TESTED_PYTHON%。電腦裡已經有 Python 的話會先用它。
+echo Node.js 22 or newer (https://nodejs.org) is recommended for better video quality from YouTube. It works without it too.
+echo 建議也安裝 Node.js 22 以上：從 YouTube 加歌能拿到比較好的畫質，沒有也能用。
+echo About 5.3 GB will be downloaded. Make sure your connection is stable.
 echo 大約要下載 5.3GB，請確認網路穩定。
 echo.
+
+rem 已經建過虛擬環境就直接用，不用再找 Python
+if exist ".venv\Scripts\python.exe" goto ready
+
+rem 找電腦裡的 Python：先找測過的版本
+set "PYTHON_CMD="
+set "PYTHON_TESTED=yes"
+for %%v in (%TESTED_PYTHON%) do (
+  if not defined PYTHON_CMD (
+    py -%%v -c "" >nul 2>nul && set "PYTHON_CMD=py -%%v"
+  )
+)
+rem 沒有測過的版本：電腦裡有別的 Python 就先用它
+if not defined PYTHON_CMD (
+  set "PYTHON_TESTED=no"
+  py -3 -c "" >nul 2>nul && set "PYTHON_CMD=py -3"
+)
+if not defined PYTHON_CMD (
+  python -c "" >nul 2>nul && set "PYTHON_CMD=python"
+)
+if not defined PYTHON_CMD (
+  echo Python was not found. Please install Python %TESTED_PYTHON% from https://www.python.org and run setup.bat again.
+  echo 找不到 Python。請先安裝 Python %TESTED_PYTHON%，再執行一次 setup.bat
+  pause
+  exit /b 1
+)
+
+set "PYTHON_VERSION="
+for /f "delims=" %%i in ('%PYTHON_CMD% -c "import platform; print(platform.python_version())"') do set "PYTHON_VERSION=%%i"
+echo Using the Python on this PC: %PYTHON_VERSION%
+echo 會用電腦裡的 Python %PYTHON_VERSION%
+if "%PYTHON_TESTED%"=="no" (
+  echo.
+  echo WARNING: this app was tested with Python %TESTED_PYTHON%. Your version is different, so there may be problems.
+  echo It will be tried anyway. If setup fails, install a tested version and run setup.bat again.
+  echo 警告：這個程式測過的 Python 版本是 %TESTED_PYTHON%，你的版本不一樣，可能會有問題。
+  echo 會先用它試試看；裝不起來的話，請安裝測過的版本再執行一次。
+)
+echo.
+
+:ready
+echo Press any key to start. Close this window if you do not want to install.
 echo 按任意鍵開始安裝，不想安裝就直接關掉這個視窗。
 pause >nul
 
 if not exist ".venv\Scripts\python.exe" (
-  py -3.12 -m venv .venv
+  %PYTHON_CMD% -m venv .venv
   if errorlevel 1 goto failed
 )
 
@@ -37,10 +94,16 @@ if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" tools\download_model.py
 if errorlevel 1 goto failed
 
+rem 最後確認程式真的載得起來（Python 版本不合、或檔案被 Windows 擋住，這裡會先發現）
+".venv\Scripts\python.exe" -c "import server.main"
+if errorlevel 1 goto cannot_run
+
 rem 做一個記號：安裝完成了（start.bat 看到這個檔案才會直接啟動）
 echo 安裝完成 > ".venv\setup_done.txt"
 
 echo.
+echo Setup finished. Scanning the .venv folder with Windows Defender is recommended.
+echo Double-click start.bat to start singing.
 echo 安裝完成！建議用 Windows Defender 掃描一下 .venv 資料夾。
 echo 之後雙擊 start.bat 就可以開始唱歌了。
 pause
@@ -48,6 +111,18 @@ exit /b 0
 
 :failed
 echo.
+echo Setup failed. See the error above, check your connection, then run setup.bat again.
 echo 安裝失敗：請看上面的錯誤訊息，確認網路後再執行一次 setup.bat
+pause
+exit /b 1
+
+:cannot_run
+echo.
+echo The packages were installed, but the app cannot load (see the error above).
+echo This Python version may not work, or Windows may have blocked a file.
+echo You can try: delete the .venv folder, install Python %TESTED_PYTHON%, then run setup.bat again.
+echo 套件裝好了，但是程式載不起來（錯誤訊息在上面）。
+echo 可能是這個版本的 Python 不合，或是有檔案被 Windows 擋住。
+echo 可以試試：刪掉 .venv 資料夾，安裝 Python %TESTED_PYTHON% 之後再執行一次 setup.bat
 pause
 exit /b 1

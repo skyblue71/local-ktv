@@ -94,6 +94,9 @@ export async function openSettingsDialog(options) {
     rangeRow('總音量' + helpTip('你聽到的整體大小（不影響錄音）。唱歌畫面下面也可以隨時調'), 'set-master-volume', 0, 100, 5) +
     switchRow('背景播 MV' + helpTip('有影片的歌才有（從 YouTube 加的歌、mp4 影片）'), 'set-mv') +
     rangeRow('MV 亮度' + helpTip('太亮會看不清楚字幕'), 'set-mv-brightness', 10, 100, 5) +
+    switchRow('音樂跳動柱' + helpTip('唱歌畫面最下面那一排，跟著音樂大小聲跳的柱子\n\n' +
+      '會影響：只有畫面，關掉比較乾淨。\n' +
+      '不會影響：分數、評分條、字幕、聲音'), 'set-spectrum') +
     '      </div>' +
     '    </section>' +
     '    <section class="settings-section tone-green">' +
@@ -143,6 +146,7 @@ export async function openSettingsDialog(options) {
   box.querySelector('#set-master-volume').value = settings.masterVolume;
   box.querySelector('#set-mv').checked = settings.showMV;
   box.querySelector('#set-mv-brightness').value = settings.mvBrightness;
+  box.querySelector('#set-spectrum').checked = settings.showSpectrum;
 
   function showNumbers() {
     box.querySelector('#set-latency-value').textContent = box.querySelector('#set-latency').value + ' 毫秒';
@@ -191,6 +195,7 @@ export async function openSettingsDialog(options) {
     settings.masterVolume = Number(box.querySelector('#set-master-volume').value);
     settings.showMV = box.querySelector('#set-mv').checked;
     settings.mvBrightness = Number(box.querySelector('#set-mv-brightness').value);
+    settings.showSpectrum = box.querySelector('#set-spectrum').checked;
     saveSettings(settings);
     let message = '';
     if (options.onSaved) {

@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   countdown: true,         // 按「開始」後先倒數 3、2、1
   showMV: true,            // 有影片的歌，唱歌時背景播 MV
   mvBrightness: 45,        // MV 亮度 10~100（太亮會看不清楚字幕）
+  showSpectrum: true,      // 唱歌畫面最下面那排跟著音樂跳的柱子（只是好看，不影響分數）
 };
 
 export function loadSettings() {

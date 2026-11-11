@@ -465,7 +465,12 @@ function loop() {
     singer.scorer.update(now - judgeDelay);
   }
 
-  page.pitchView.setSpectrum(page.spectrum.read());
+  // 音樂跳動柱：設定關掉就不給資料（不給就不畫）
+  if (page.settings.showSpectrum) {
+    page.pitchView.setSpectrum(page.spectrum.read());
+  } else {
+    page.pitchView.setSpectrum(null);
+  }
   page.pitchView.draw(now, page.singers);
   page.lyricsView.update(now);
   if (page.mv) {

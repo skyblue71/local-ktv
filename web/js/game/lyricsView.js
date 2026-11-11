@@ -6,6 +6,7 @@
 //   上層（tok-over）：彩色字黑邊 → 唱到的部分，從左邊慢慢露出來（--fill 從 0% 到 100%）
 // 對唱：整句加上 singer-1（男）、singer-2（女）、singer-3（合）的 class，上層換顏色
 
+import { t } from '../i18n.js';
 import { escapeHtml } from '../ui.js';
 
 const LEAD = 0.1;          // 字幕填色稍微走在歌聲前面 0.1 秒（跟 KTV 一樣），看起來才不會慢一拍
@@ -106,9 +107,9 @@ export class LyricsView {
     this.slotLine = [-1, -1];   // 每個位置現在放第幾句
 
     if (this.lines.length === 0) {
-      let message = '（這首歌還沒有歌詞，可以到「編輯歌詞」加入）';
+      let message = t('（這首歌還沒有歌詞，可以到「編輯歌詞」加入）');
       if (lyrics && !lyrics.synced) {
-        message = '（歌詞沒有時間軸，請到「編輯歌詞」用點按同步）';
+        message = t('（歌詞沒有時間軸，請到「編輯歌詞」用點按同步）');
       }
       this.slots[0].querySelector('.lyric-content').innerHTML = '<div class="lyric-empty">' + message + '</div>';
     }

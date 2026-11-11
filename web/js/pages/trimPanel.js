@@ -5,17 +5,18 @@
 //   裁切只決定播哪一段，跟歌詞的時間無關：歌詞永遠放在歌手真的唱的地方（server\trim.py）。
 
 import * as api from '../api.js';
+import { t, tServer } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, formatTime, helpTip, showToast } from '../ui.js';
 
 // 小問號裡的說明
-const TRIM_HELP = '只唱其中一段，例如跳過 MV 前面的劇情、後面的片尾。\n' +
-  '不會刪掉檔案，隨時可以按「不裁切」還原。\n' +
-  '用下面的播放器找到要開始（結束）的地方，按「目前位置」，再按「儲存」\n\n' +
-  '會影響：只播、只評分這一段，分數也只算這一段。\n' +
-  '不會影響：歌詞的時間、評分條的位置（裁完字幕一樣對得齊）';
-const SUGGEST_HELP = '找出歌開始前、結束後的劇情（說話、人聲），幫你填好時間。按「儲存」才會套用。\n' +
-  '只找頭和尾。歌中間的劇情裁不掉，但那裡沒有歌詞，本來就沒有評分條、不扣分';
+const TRIM_HELP = t('只唱其中一段，例如跳過 MV 前面的劇情、後面的片尾。\n') +
+  t('不會刪掉檔案，隨時可以按「不裁切」還原。\n') +
+  t('用下面的播放器找到要開始（結束）的地方，按「目前位置」，再按「儲存」\n\n') +
+  t('會影響：只播、只評分這一段，分數也只算這一段。\n') +
+  t('不會影響：歌詞的時間、評分條的位置（裁完字幕一樣對得齊）');
+const SUGGEST_HELP = t('找出歌開始前、結束後的劇情（說話、人聲），幫你填好時間。按「儲存」才會套用。\n') +
+  t('只找頭和尾。歌中間的劇情裁不掉，但那裡沒有歌詞，本來就沒有評分條、不扣分');
 
 // 現在的裁切狀態，例如「目前：0:54 ～ 4:45」；沒有裁切就不寫
 function stateText(song) {
@@ -24,36 +25,36 @@ function stateText(song) {
   if (start <= 0 && end <= 0) {
     return '';
   }
-  let endText = '最後';
+  let endText = t('最後');
   if (end > 0) {
     endText = formatTime(end);
   }
-  return '目前：' + formatTime(start) + ' ～ ' + endText;
+  return t('目前：{start} ～ {end}', { start: formatTime(start), end: endText });
 }
 
 // 自動找到的劇情，例如「從 0:51.6 開始」「到 4:30.2 結束」
 function suggestionText(suggestion) {
   const parts = [];
   if (suggestion.start > 0) {
-    parts.push('從 ' + preciseTime(suggestion.start) + ' 開始');
+    parts.push(t('從 {time} 開始', { time: preciseTime(suggestion.start) }));
   }
   if (suggestion.end > 0) {
-    parts.push('到 ' + preciseTime(suggestion.end) + ' 結束');
+    parts.push(t('到 {time} 結束', { time: preciseTime(suggestion.end) }));
   }
-  return parts.join('、');
+  return parts.join(t('、'));
 }
 
 // 滑鼠移上去看的詳細內容：劇情有幾秒
 function suggestionDetail(suggestion) {
   const parts = [];
   if (suggestion.start > 0 && suggestion.song_zero > 0) {
-    parts.push('歌詞的版本從 ' + preciseTime(suggestion.song_zero) + ' 才開始，前面有 ' +
-      suggestion.voice_before + ' 秒的人聲，不是歌');
+    parts.push(t('歌詞的版本從 {time} 才開始，前面有 {seconds} 秒的人聲，不是歌',
+      { time: preciseTime(suggestion.song_zero), seconds: suggestion.voice_before }));
   } else if (suggestion.start > 0) {
-    parts.push('開頭有 ' + suggestion.talk_before + ' 秒的人在說話');
+    parts.push(t('開頭有 {seconds} 秒的人在說話', { seconds: suggestion.talk_before }));
   }
   if (suggestion.end > 0) {
-    parts.push('結尾有 ' + suggestion.talk_after + ' 秒的人在說話');
+    parts.push(t('結尾有 {seconds} 秒的人在說話', { seconds: suggestion.talk_after }));
   }
   return parts.join('\n');
 }
@@ -78,32 +79,32 @@ export function renderTrimPanel(box, song, onSaved) {
 
   box.innerHTML =
     '<details class="trim-details"' + openAttribute + '>' +
-    '  <summary>' + icon('scissors') + ' 裁切' + helpTip(TRIM_HELP) + '</summary>' +
+    '  <summary>' + icon('scissors') + ' ' + t('裁切') + helpTip(TRIM_HELP) + '</summary>' +
     '  <div class="trim-row">' +
-    '    <button class="btn btn-small" id="trim-suggest">' + icon('wand') + ' 自動找劇情</button>' + helpTip(SUGGEST_HELP) +
+    '    <button class="btn btn-small" id="trim-suggest">' + icon('wand') + ' ' + t('自動找劇情') + '</button>' + helpTip(SUGGEST_HELP) +
     '    <span class="small" id="trim-suggest-text"></span>' +
     '  </div>' +
     '  <div class="trim-media-box" id="trim-media-box"></div>' +
     '  <div class="trim-grid">' +
-    '    <span class="trim-label">開始</span>' +
-    '    <label class="offset-value"><input class="input" type="number" id="trim-start" min="0" step="0.1"> 秒</label>' +
+    '    <span class="trim-label">' + t('開始') + '</span>' +
+    '    <label class="offset-value"><input class="input" type="number" id="trim-start" min="0" step="0.1"> ' + t('秒') + '</label>' +
     '    <span class="muted small trim-time" id="trim-start-text"></span>' +
     '    <div class="trim-buttons">' +
-    '      <button class="btn btn-small" id="trim-start-now" title="用播放器現在的位置">' + icon('target') + ' 目前位置</button>' +
-    '      <button class="btn btn-small" id="trim-start-listen" title="從這裡開始聽">' + icon('play') + ' 試聽</button>' +
+    '      <button class="btn btn-small" id="trim-start-now" title="' + t('用播放器現在的位置') + '">' + icon('target') + ' ' + t('目前位置') + '</button>' +
+    '      <button class="btn btn-small" id="trim-start-listen" title="' + t('從這裡開始聽') + '">' + icon('play') + ' ' + t('試聽') + '</button>' +
     '    </div>' +
-    '    <span class="trim-label">結束</span>' +
-    '    <label class="offset-value"><input class="input" type="number" id="trim-end" min="0" step="0.1" placeholder="最後"> 秒</label>' +
+    '    <span class="trim-label">' + t('結束') + '</span>' +
+    '    <label class="offset-value"><input class="input" type="number" id="trim-end" min="0" step="0.1" placeholder="' + t('最後') + '"> ' + t('秒') + '</label>' +
     '    <span class="muted small trim-time" id="trim-end-text"></span>' +
     '    <div class="trim-buttons">' +
-    '      <button class="btn btn-small" id="trim-end-now" title="用播放器現在的位置">' + icon('target') + ' 目前位置</button>' +
-    '      <button class="btn btn-small" id="trim-end-listen" title="聽結尾前 5 秒">' + icon('play') + ' 試聽</button>' +
+    '      <button class="btn btn-small" id="trim-end-now" title="' + t('用播放器現在的位置') + '">' + icon('target') + ' ' + t('目前位置') + '</button>' +
+    '      <button class="btn btn-small" id="trim-end-listen" title="' + t('聽結尾前 5 秒') + '">' + icon('play') + ' ' + t('試聽') + '</button>' +
     '    </div>' +
     '  </div>' +
     '  <p class="muted small" id="trim-state"></p>' +
     '  <div class="button-row">' +
-    '    <button class="btn btn-primary" id="trim-save">' + icon('save') + ' 儲存</button>' +
-    '    <button class="btn" id="trim-reset">不裁切</button>' +
+    '    <button class="btn btn-primary" id="trim-save">' + icon('save') + ' ' + t('儲存') + '</button>' +
+    '    <button class="btn" id="trim-reset">' + t('不裁切') + '</button>' +
     '  </div>' +
     '</details>';
 
@@ -121,7 +122,7 @@ export function renderTrimPanel(box, song, onSaved) {
   function showTimes() {
     box.querySelector('#trim-start-text').textContent = preciseTime(Number(startInput.value) || 0);
     if (endInput.value === '' || Number(endInput.value) <= 0) {
-      box.querySelector('#trim-end-text').textContent = '到最後 ' + formatTime(song.duration);
+      box.querySelector('#trim-end-text').textContent = t('到最後 {time}', { time: formatTime(song.duration) });
     } else {
       box.querySelector('#trim-end-text').textContent = preciseTime(Number(endInput.value));
     }
@@ -186,11 +187,11 @@ export function renderTrimPanel(box, song, onSaved) {
   // 自動找劇情：找到的話把建議的時間填進去（按「儲存」才會套用）
   box.querySelector('#trim-suggest').addEventListener('click', async function () {
     const text = box.querySelector('#trim-suggest-text');
-    text.textContent = '尋找中…';
+    text.textContent = t('尋找中…');
     try {
       const result = await api.suggestTrim(song.id);
       if (result.suggestion === null) {
-        text.innerHTML = escapeHtml(result.reason);
+        text.innerHTML = escapeHtml(tServer(result.reason));
         return;
       }
       startInput.value = result.suggestion.start;
@@ -199,10 +200,10 @@ export function renderTrimPanel(box, song, onSaved) {
         endInput.value = result.suggestion.end;
       }
       showTimes();
-      text.innerHTML = '已填好：' + escapeHtml(suggestionText(result.suggestion)) +
-        helpTip(suggestionDetail(result.suggestion) + '\n可以先按「試聽」確認，再按「儲存」');
+      text.innerHTML = t('已填好：{text}', { text: escapeHtml(suggestionText(result.suggestion)) }) +
+        helpTip(suggestionDetail(result.suggestion) + t('\n可以先按「試聽」確認，再按「儲存」'));
     } catch (error) {
-      text.textContent = '找不到：' + error.message;
+      text.textContent = t('找不到：{reason}', { reason: error.message });
     }
   });
 
@@ -212,12 +213,12 @@ export function renderTrimPanel(box, song, onSaved) {
       if (media) {
         media.pause();
       }
-      showToast(result.message || '已儲存', 'ok');
+      showToast(tServer(result.message) || t('已儲存'), 'ok');
       if (onSaved) {
         onSaved();
       }
     } catch (error) {
-      showToast('儲存失敗：' + error.message, 'error');
+      showToast(t('儲存失敗：{reason}', { reason: error.message }), 'error');
     }
   }
 

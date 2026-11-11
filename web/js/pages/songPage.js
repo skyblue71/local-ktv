@@ -2,6 +2,7 @@
 
 import * as api from '../api.js';
 import { lineHtml } from '../game/lyricsView.js';
+import { t, tServer } from '../i18n.js';
 import { icon, iconButton } from '../icons.js';
 import { loadSettings } from '../settings.js';
 import { confirmAction, escapeHtml, formatTime, helpTip, openDialog, showToast } from '../ui.js';
@@ -17,23 +18,23 @@ function songTags(song) {
   tags.push('<span class="tag">' + icon('clock') + ' ' + formatTime(song.duration) + '</span>');
   let source = '';
   if (song.lyrics_source) {
-    source = '來源：' + song.lyrics_source;
+    source = t('來源：{source}', { source: tServer(song.lyrics_source) });
   }
   if (song.has_lyrics && song.lyrics_synced) {
-    tags.push('<span class="tag tag-ok" title="' + escapeHtml(source) + '">' + icon('lyrics') + ' 字幕</span>');
+    tags.push('<span class="tag tag-ok" title="' + escapeHtml(source) + '">' + icon('lyrics') + ' ' + t('字幕') + '</span>');
   } else if (song.has_lyrics) {
-    tags.push('<span class="tag tag-warn" title="歌詞沒有時間，到「編輯歌詞」用點按同步">歌詞沒時間</span>');
+    tags.push('<span class="tag tag-warn" title="' + t('歌詞沒有時間，到「編輯歌詞」用點按同步') + '">' + t('歌詞沒時間') + '</span>');
   } else {
-    tags.push('<span class="tag tag-warn">沒歌詞</span>');
+    tags.push('<span class="tag tag-warn">' + t('沒歌詞') + '</span>');
   }
   if (song.has_vocals) {
-    tags.push('<span class="tag tag-ok" title="可以開導唱">' + icon('vocals') + ' 已去人聲</span>');
+    tags.push('<span class="tag tag-ok" title="' + t('可以開導唱') + '">' + icon('vocals') + ' ' + t('已去人聲') + '</span>');
   }
   if (song.has_video) {
     tags.push('<span class="tag tag-ok">' + icon('video') + ' MV</span>');
   }
   if (song.has_chart) {
-    tags.push('<span class="tag tag-ok" title="唱歌時用你修的評分條">' + icon('bars') + ' 修過譜</span>');
+    tags.push('<span class="tag tag-ok" title="' + t('唱歌時用你修的評分條') + '">' + icon('bars') + ' ' + t('修過譜') + '</span>');
   }
   if (song.source === 'YouTube') {
     tags.push('<span class="tag">YouTube</span>');
@@ -45,14 +46,14 @@ function songTags(song) {
     if (trimEnd > 0) {
       endText = formatTime(trimEnd);
     }
-    tags.push('<span class="tag" title="只唱這一段">' + icon('scissors') + ' ' + formatTime(trimStart) + '～' + endText + '</span>');
+    tags.push('<span class="tag" title="' + t('只唱這一段') + '">' + icon('scissors') + ' ' + formatTime(trimStart) + '～' + endText + '</span>');
   }
   return tags.join('');
 }
 
 export async function enter(app, id) {
   songId = id;
-  app.innerHTML = '<div class="page"><p class="muted">載入中…</p></div>';
+  app.innerHTML = '<div class="page"><p class="muted">' + t('載入中…') + '</p></div>';
   await render(app);
 }
 
@@ -68,15 +69,15 @@ async function render(app) {
   try {
     song = await api.getSong(songId);
   } catch (error) {
-    app.innerHTML = '<div class="page"><p>找不到這首歌。</p><a href="#/" class="btn">回歌曲庫</a></div>';
+    app.innerHTML = '<div class="page"><p>' + t('找不到這首歌。') + '</p><a href="#/" class="btn">' + t('回歌曲庫') + '</a></div>';
     return;
   }
 
   // 封面（點一下可以編輯）
-  let cover = '<div class="cover cover-big cover-placeholder cover-editable" id="hero-cover" title="點一下換封面">' +
+  let cover = '<div class="cover cover-big cover-placeholder cover-editable" id="hero-cover" title="' + t('點一下換封面') + '">' +
     escapeHtml((song.title || '?').charAt(0)) + '</div>';
   if (song.has_cover) {
-    cover = '<div class="cover cover-big cover-editable" id="hero-cover" title="點一下換封面"><img src="' +
+    cover = '<div class="cover cover-big cover-editable" id="hero-cover" title="' + t('點一下換封面') + '"><img src="' +
       api.coverUrl(song.id, song.cover_version) + '" alt=""></div>';
   }
 
@@ -89,47 +90,47 @@ async function render(app) {
   const ready = song.status === 'ready';
   let statusHtml = '';
   if (song.status === 'error') {
-    statusHtml = '<div class="notice notice-error">處理失敗：' + escapeHtml(song.error) + '</div>';
+    statusHtml = '<div class="notice notice-error">' + t('處理失敗：{error}', { error: escapeHtml(tServer(song.error)) }) + '</div>';
   } else if (!ready) {
     statusHtml =
       '<div class="notice">' +
-      '  <div>' + escapeHtml(song.stage) + '…</div>' +
+      '  <div>' + escapeHtml(tServer(song.stage)) + '…</div>' +
       '  <div class="progress"><div class="progress-fill" style="width:' + song.progress + '%"></div></div>' +
       '</div>';
   } else if (song.has_vocals && song.pitch_source === 'original') {
-    statusHtml = '<div class="notice">人聲沒分離成功，評分可能不準' +
-      helpTip('評分用的旋律是從原曲分析的') + '</div>';
+    statusHtml = '<div class="notice">' + t('人聲沒分離成功，評分可能不準') +
+      helpTip(t('評分用的旋律是從原曲分析的')) + '</div>';
   }
 
   const songPath = '#/song/' + encodeURIComponent(song.id);
   app.innerHTML =
     '<div class="page">' +
-    '  <a href="#/" class="back-link">' + icon('back') + '歌曲庫</a>' +
+    '  <a href="#/" class="back-link">' + icon('back') + t('歌曲庫') + '</a>' +
     '  <div class="song-hero">' + glow + cover +
     '    <div class="song-hero-info">' +
     '      <div class="hero-title-row">' +
     '        <h1>' + escapeHtml(song.title) + '</h1>' +
     '        <div class="hero-tools">' +
-    iconButton('edit', '編輯歌名、歌手、封面', 'rename-button', 'btn-ghost') +
-    iconButton('refresh', '重新處理', 'reprocess-button', 'btn-ghost') +
-    iconButton('trash', '刪除這首歌', 'delete-button', 'btn-ghost btn-danger') +
+    iconButton('edit', t('編輯歌名、歌手、封面'), 'rename-button', 'btn-ghost') +
+    iconButton('refresh', t('重新處理'), 'reprocess-button', 'btn-ghost') +
+    iconButton('trash', t('刪除這首歌'), 'delete-button', 'btn-ghost btn-danger') +
     '        </div>' +
     '      </div>' +
-    '      <p class="song-artist-big">' + escapeHtml(song.artist || '未知歌手') + '</p>' +
+    '      <p class="song-artist-big">' + escapeHtml(song.artist || t('未知歌手')) + '</p>' +
     '      <div class="tags">' + songTags(song) + '</div>' +
     statusHtml +
     '      <div class="button-row">' +
-    '        <a class="btn btn-primary btn-big' + (ready ? '' : ' disabled') + '" href="#/sing/' + encodeURIComponent(song.id) + '">' + icon('mic') + ' 開始唱歌</a>' +
-    '        <a class="btn' + (ready && song.has_vocals ? '' : ' disabled') + '" href="#/sing/' + encodeURIComponent(song.id) + '?test=1" title="不用麥克風，讓原唱自己唱，確認評分正常（分數不會存）">' + icon('flask') + ' 測試</a>' +
-    '        <a class="btn" href="' + songPath + '/lyrics">' + icon('lyrics') + ' 編輯歌詞</a>' +
-    '        <a class="btn' + (ready ? '' : ' disabled') + '" href="' + songPath + '/chart" title="自己修評分條、調每個字的時間">' + icon('bars') + ' 修譜</a>' +
+    '        <a class="btn btn-primary btn-big' + (ready ? '' : ' disabled') + '" href="#/sing/' + encodeURIComponent(song.id) + '">' + icon('mic') + ' ' + t('開始唱歌') + '</a>' +
+    '        <a class="btn' + (ready && song.has_vocals ? '' : ' disabled') + '" href="#/sing/' + encodeURIComponent(song.id) + '?test=1" title="' + t('不用麥克風，讓原唱自己唱，確認評分正常（分數不會存）') + '">' + icon('flask') + ' ' + t('測試') + '</a>' +
+    '        <a class="btn" href="' + songPath + '/lyrics">' + icon('lyrics') + ' ' + t('編輯歌詞') + '</a>' +
+    '        <a class="btn' + (ready ? '' : ' disabled') + '" href="' + songPath + '/chart" title="' + t('自己修評分條、調每個字的時間') + '">' + icon('bars') + ' ' + t('修譜') + '</a>' +
     '      </div>' +
     '    </div>' +
     '  </div>' +
     '  <section class="panel" id="trim-panel"></section>' +
     '  <div class="two-columns">' +
-    '    <section class="panel"><h2>分數排行</h2><div id="score-list" class="muted">載入中…</div></section>' +
-    '    <section class="panel"><h2>歌詞</h2><div id="lyrics-preview" class="lyrics-preview muted">載入中…</div></section>' +
+    '    <section class="panel"><h2>' + t('分數排行') + '</h2><div id="score-list" class="muted">' + t('載入中…') + '</div></section>' +
+    '    <section class="panel"><h2>' + t('歌詞') + '</h2><div id="lyrics-preview" class="lyrics-preview muted">' + t('載入中…') + '</div></section>' +
     '  </div>' +
     '</div>';
 
@@ -153,18 +154,18 @@ async function render(app) {
   document.getElementById('hero-cover').addEventListener('click', editSong);
 
   document.getElementById('reprocess-button').addEventListener('click', function () {
-    const dialog = openDialog('重新處理',
-      '<p>重新分析音高、產生字幕' + helpTip('會重做：轉檔、分人聲、評分條（AI 的）、字幕。\n' +
-        '會留著：歌詞、你修過的譜、你調過的字、裁切、分數、封面。\n\n' +
-        '選「不去人聲」：沒有導唱、不能用「測試」，AI 也聽不到字（字幕照評分條分，比較不準）') + '</p>' +
+    const dialog = openDialog(t('重新處理'),
+      '<p>' + t('重新分析音高、產生字幕') + helpTip(t('會重做：轉檔、分人聲、評分條（AI 的）、字幕。\n') +
+        t('會留著：歌詞、你修過的譜、你調過的字、裁切、分數、封面。\n\n') +
+        t('選「不去人聲」：沒有導唱、不能用「測試」，AI 也聽不到字（字幕照評分條分，比較不準）')) + '</p>' +
       '<div class="dialog-actions">' +
-      '  <button class="btn" id="no-separate">不去人聲</button>' +
-      '  <button class="btn btn-primary" id="yes-separate">AI 去人聲</button>' +
+      '  <button class="btn" id="no-separate">' + t('不去人聲') + '</button>' +
+      '  <button class="btn btn-primary" id="yes-separate">' + t('AI 去人聲') + '</button>' +
       '</div>');
     async function start(separate) {
       dialog.close();
       await api.reprocessSong(song.id, separate);
-      showToast('已重新排隊處理', 'ok');
+      showToast(t('已重新排隊處理'), 'ok');
       render(app);
     }
     dialog.box.querySelector('#no-separate').addEventListener('click', function () {
@@ -176,11 +177,11 @@ async function render(app) {
   });
 
   document.getElementById('delete-button').addEventListener('click', async function () {
-    if (!confirmAction('確定要刪除「' + song.title + '」嗎？\n影片、歌詞、你修過的譜、調過的字、分數紀錄都會一起刪掉，不能還原。')) {
+    if (!confirmAction(t('確定要刪除「{title}」嗎？\n影片、歌詞、你修過的譜、調過的字、分數紀錄都會一起刪掉，不能還原。', { title: song.title }))) {
       return;
     }
     await api.deleteSong(song.id);
-    showToast('已刪除', 'ok');
+    showToast(t('已刪除'), 'ok');
     location.hash = '#/';
   });
 
@@ -203,17 +204,17 @@ async function loadScores(id) {
   try {
     scores = await api.getScores(id);
   } catch (error) {
-    box.textContent = '讀取失敗';
+    box.textContent = t('讀取失敗');
     return;
   }
   if (scores.length === 0) {
-    box.textContent = '還沒有人唱過，來當第一個吧！';
+    box.textContent = t('還沒有人唱過，來當第一個吧！');
     return;
   }
   scores.sort(function (a, b) {
     return b.total - a.total;
   });
-  let html = '<table class="score-table"><tr><th>#</th><th>歌手</th><th>分數</th><th>日期</th></tr>';
+  let html = '<table class="score-table"><tr><th>#</th><th>' + t('名字') + '</th><th>' + t('分數') + '</th><th>' + t('日期') + '</th></tr>';
   for (let i = 0; i < scores.length && i < 10; i++) {
     const score = scores[i];
     html += '<tr><td>' + (i + 1) + '</td><td>' + escapeHtml(score.player) + '</td>' +
@@ -232,11 +233,11 @@ async function loadLyricsPreview(id) {
   try {
     data = await api.getLyrics(id);
   } catch (error) {
-    box.textContent = '讀取失敗';
+    box.textContent = t('讀取失敗');
     return;
   }
   if (!data.lyrics || data.lyrics.lines.length === 0) {
-    box.textContent = '還沒有歌詞。';
+    box.textContent = t('還沒有歌詞。');
     return;
   }
   let html = '';

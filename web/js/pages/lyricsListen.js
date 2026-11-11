@@ -16,6 +16,7 @@ import { SongPlayer } from '../audio/songPlayer.js';
 import { LyricsView } from '../game/lyricsView.js';
 import { applyQuietSetting } from '../game/quietParts.js';
 import { trimStart } from '../game/trimRange.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings } from '../settings.js';
 import { escapeHtml, formatTime } from '../ui.js';
@@ -48,7 +49,7 @@ export class LyricsListen {
     const player = await this.loading;
     if (this.destroyed) {
       player.destroy();
-      throw new Error('已經離開這一頁');
+      throw new Error(t('已經離開這一頁'));
     }
     player.setGuideVolume(100);   // 要聽得到原唱，才知道字幕準不準
     this.player = player;
@@ -61,7 +62,7 @@ export class LyricsListen {
 
     const box = document.createElement('div');
     box.className = 'listen-box';
-    box.innerHTML = '<p class="muted small">載入中…</p>';
+    box.innerHTML = '<p class="muted small">' + t('載入中…') + '</p>';
     row.after(box);
     this.box = box;
     box.scrollIntoView({ block: 'nearest' });
@@ -78,7 +79,8 @@ export class LyricsListen {
         this.loading = null;   // 下次再試著載一次
       }
       if (myTurn === this.turn) {
-        box.innerHTML = '<p class="muted small">沒辦法試聽：' + escapeHtml(error.message) + '</p>';
+        box.innerHTML = '<p class="muted small">' +
+          t('沒辦法試聽：{message}', { message: escapeHtml(error.message) }) + '</p>';
       }
       return;
     }
@@ -105,8 +107,9 @@ export class LyricsListen {
       '<div class="listen-controls">' +
       '  <span class="listen-time">' + formatTime(begin) + '</span>' +
       '  <input type="range" class="listen-seek" min="0" max="' + player.getDuration().toFixed(1) +
-      '" step="0.1" value="' + begin.toFixed(1) + '" title="拖到想聽的地方">' +
-      '  <button type="button" class="btn btn-icon listen-stop" title="停止" aria-label="停止">' + icon('stop') + '</button>' +
+      '" step="0.1" value="' + begin.toFixed(1) + '" title="' + t('拖到想聽的地方') + '">' +
+      '  <button type="button" class="btn btn-icon listen-stop" title="' + t('停止') + '" aria-label="' + t('停止') + '">' +
+      icon('stop') + '</button>' +
       '</div>';
     this.view = new LyricsView(this.box.querySelector('.listen-lyrics'), lyrics, settings);
 

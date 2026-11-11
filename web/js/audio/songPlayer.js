@@ -7,6 +7,8 @@
 // vocalTap 是給「測試模式」用的：把原唱人聲直接送進音高偵測（不受導唱音量影響）。
 // 錄音是從 master 接出去的，所以「總音量」只影響你聽到的大小，不影響錄音。
 
+import { t } from '../i18n.js';
+
 export class SongPlayer {
   constructor(context) {
     this.context = context;
@@ -175,7 +177,7 @@ export class SongPlayer {
 async function loadAudioBuffer(context, url, onProgress) {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('音訊下載失敗：' + url);
+    throw new Error(t('音訊下載失敗：{url}', { url: url }));
   }
   const total = Number(response.headers.get('Content-Length')) || 0;
   const reader = response.body.getReader();

@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
   showMV: true,            // 有影片的歌，唱歌時背景播 MV
   mvBrightness: 45,        // MV 亮度 10~100（太亮會看不清楚字幕）
   showSpectrum: true,      // 唱歌畫面最下面那排跟著音樂跳的柱子（只是好看，不影響分數）
+  language: 'auto',        // 介面語言：'auto' 跟瀏覽器走，或是 i18n.js 的 LANGUAGES 裡的代號（'zh'、'en'）
 };
 
 export function loadSettings() {

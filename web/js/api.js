@@ -1,6 +1,8 @@
 // 跟後端（Python 伺服器）溝通的函式都放在這裡。
 // 其他檔案要拿資料時，只要呼叫這裡的函式就好。
 
+import { t, tServer } from './i18n.js';
+
 async function request(method, url, data) {
   const options = { method: method, headers: {} };
   if (data !== undefined) {
@@ -10,11 +12,11 @@ async function request(method, url, data) {
 
   const response = await fetch(url, options);
   if (!response.ok) {
-    let message = '伺服器錯誤 ' + response.status;
+    let message = t('伺服器錯誤 {status}', { status: response.status });
     try {
       const body = await response.json();
       if (body.detail) {
-        message = body.detail;
+        message = tServer(body.detail);
       }
     } catch (error) {
       // 回應不是 JSON，就用預設訊息
@@ -110,7 +112,7 @@ export async function uploadCover(songId, file) {
     return {};
   });
   if (!response.ok) {
-    throw new Error(body.detail || ('上傳失敗 ' + response.status));
+    throw new Error(tServer(body.detail) || t('上傳失敗 {status}', { status: response.status }));
   }
   return body;
 }
@@ -161,15 +163,15 @@ export function uploadSong(formData, onProgress) {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(body);
       } else {
-        let message = '上傳失敗 ' + xhr.status;
+        let message = t('上傳失敗 {status}', { status: xhr.status });
         if (body && body.detail) {
-          message = body.detail;
+          message = tServer(body.detail);
         }
         reject(new Error(message));
       }
     };
     xhr.onerror = function () {
-      reject(new Error('上傳失敗：連不到伺服器'));
+      reject(new Error(t('上傳失敗：連不到伺服器')));
     };
     xhr.send(formData);
   });
@@ -227,7 +229,7 @@ export async function exportRecording(blob, formatId) {
     const body = await response.json().catch(function () {
       return {};
     });
-    throw new Error(body.detail || ('轉檔失敗 ' + response.status));
+    throw new Error(tServer(body.detail) || t('轉檔失敗 {status}', { status: response.status }));
   }
   return response.blob();
 }

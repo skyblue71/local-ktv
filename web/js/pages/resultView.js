@@ -1,15 +1,16 @@
 // 唱完的結果畫面：總分、五角形能力圖、各等級數量、錄音。
 
 import * as api from '../api.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, showToast } from '../ui.js';
 
 const AXES = [
-  { key: 'pitch', label: '音準' },
-  { key: 'rhythm', label: '節奏' },
-  { key: 'stability', label: '穩定' },
-  { key: 'expression', label: '表現力' },
-  { key: 'completion', label: '完成度' },
+  { key: 'pitch', label: t('音準') },
+  { key: 'rhythm', label: t('節奏') },
+  { key: 'stability', label: t('穩定') },
+  { key: 'expression', label: t('表現力') },
+  { key: 'completion', label: t('完成度') },
 ];
 
 // options: { recordingUrl, recordingName, saveMessage, isNewBest, onRetry, backUrl }
@@ -19,7 +20,7 @@ export function showResult(container, result, options) {
   if (options.recordingUrl) {
     recordingHtml =
       '<div class="result-recording">' +
-      '  <div class="muted small">你的錄音</div>' +
+      '  <div class="muted small">' + t('你的錄音') + '</div>' +
       // nodownload：把播放條「⋮」選單裡瀏覽器自己的「下載」拿掉。
       // 那個下載的是沒轉過的原本檔案（.weba，沒有總長度），要下載請用下面的按鈕
       '  <audio controls controlslist="nodownload" src="' + options.recordingUrl + '"></audio>' +
@@ -39,7 +40,7 @@ export function showResult(container, result, options) {
 
   container.innerHTML =
     '<div class="result">' +
-    (options.isNewBest ? '<div class="new-best">' + icon('star') + ' 新紀錄！</div>' : '') +
+    (options.isNewBest ? '<div class="new-best">' + icon('star') + ' ' + t('新紀錄！') + '</div>' : '') +
     '  <div class="result-top">' +
     '    <div class="result-score-box">' +
     '      <div class="result-rank rank-' + result.rank + '">' + result.rank + '</div>' +
@@ -56,13 +57,13 @@ export function showResult(container, result, options) {
     '    <div><span class="grade grade-GREAT">GREAT</span><b>' + result.counts.GREAT + '</b></div>' +
     '    <div><span class="grade grade-GOOD">GOOD</span><b>' + result.counts.GOOD + '</b></div>' +
     '    <div><span class="grade grade-MISS">MISS</span><b>' + result.counts.MISS + '</b></div>' +
-    '    <div><span class="grade">最大連擊</span><b>' + result.maxCombo + '</b></div>' +
+    '    <div><span class="grade">' + t('最大連擊') + '</span><b>' + result.maxCombo + '</b></div>' +
     '  </div>' +
     techniquesHtml(result) +
     recordingHtml +
     '  <div class="button-row result-actions">' +
-    '    <button class="btn btn-primary" id="retry-button">' + icon('refresh') + ' 再唱一次</button>' +
-    '    <a class="btn" href="' + options.backUrl + '">返回</a>' +
+    '    <button class="btn btn-primary" id="retry-button">' + icon('refresh') + ' ' + t('再唱一次') + '</button>' +
+    '    <a class="btn" href="' + options.backUrl + '">' + t('返回') + '</a>' +
     '  </div>' +
     '</div>';
 
@@ -93,7 +94,7 @@ async function showDownloadButtons(area, options) {
   if (formats.length === 0) {
     area.innerHTML =
       '<a class="btn btn-small" href="' + options.recordingUrl + '" download="' +
-      escapeHtml(options.recordingName + '.webm') + '">' + icon('download') + ' 下載錄音</a>';
+      escapeHtml(options.recordingName + '.webm') + '">' + icon('download') + ' ' + t('下載錄音') + '</a>';
     return;
   }
 
@@ -101,7 +102,7 @@ async function showDownloadButtons(area, options) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn btn-small';
-    button.innerHTML = icon('download') + ' 下載 ' + escapeHtml(format.label);
+    button.innerHTML = icon('download') + ' ' + t('下載 {format}', { format: escapeHtml(format.label) });
     button.addEventListener('click', function () {
       downloadRecording(button, format, options);
     });
@@ -113,7 +114,7 @@ async function showDownloadButtons(area, options) {
 async function downloadRecording(button, format, options) {
   const oldHtml = button.innerHTML;
   button.disabled = true;
-  button.textContent = '轉檔中…';
+  button.textContent = t('轉檔中…');
   try {
     const response = await fetch(options.recordingUrl);
     const original = await response.blob();
@@ -122,7 +123,7 @@ async function downloadRecording(button, format, options) {
       saveToComputer(converted, options.recordingName + '.' + format.id);
     } catch (error) {
       // 轉檔失敗：改給瀏覽器錄的原本檔案，至少拿得到錄音
-      showToast('轉檔失敗，改下載原本的檔案', 'error');
+      showToast(t('轉檔失敗，改下載原本的檔案'), 'error');
       saveToComputer(original, options.recordingName + '.' + originalExtension(original));
     }
   } finally {
@@ -181,17 +182,17 @@ function bonusHtml(result) {
   if (!result.bonus || result.bonus <= 0) {
     return '';
   }
-  return '<div class="result-bonus">' + icon('music') + ' 含技巧加分 +' + result.bonus.toFixed(1) + '</div>';
+  return '<div class="result-bonus">' + icon('music') + ' ' + t('含技巧加分 +{points}', { points: result.bonus.toFixed(1) }) + '</div>';
 }
 
 // 技巧次數：像日本 KTV 一樣，唱對的音符上有用技巧才算
 function techniquesHtml(result) {
   const techniques = result.techniques || { scoop: 0, kobushi: 0, fall: 0 };
   const items = [
-    { name: 'しゃくり', hint: '往上滑音', count: techniques.scoop },
-    { name: 'こぶし', hint: '轉音', count: techniques.kobushi },
-    { name: 'フォール', hint: '尾音下滑', count: techniques.fall },
-    { name: 'ビブラート', hint: '顫音', count: result.vibratoCount },
+    { name: 'しゃくり', hint: t('往上滑音'), count: techniques.scoop },
+    { name: 'こぶし', hint: t('轉音'), count: techniques.kobushi },
+    { name: 'フォール', hint: t('尾音下滑'), count: techniques.fall },
+    { name: 'ビブラート', hint: t('顫音'), count: result.vibratoCount },
   ];
   let html = '<div class="result-techniques">';
   for (const item of items) {

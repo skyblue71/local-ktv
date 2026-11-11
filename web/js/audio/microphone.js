@@ -3,6 +3,8 @@
 //
 // 未來要共唱時：每一位歌手建立一個 Microphone（選不同的麥克風）就可以了。
 
+import { t } from '../i18n.js';
+
 let workletReady = null;
 
 function loadWorklet(context) {
@@ -167,7 +169,7 @@ export async function listMicrophones() {
   const result = [];
   for (const device of devices) {
     if (device.kind === 'audioinput') {
-      result.push({ id: device.deviceId, name: device.label || '麥克風 ' + (result.length + 1) });
+      result.push({ id: device.deviceId, name: device.label || t('麥克風 {number}', { number: result.length + 1 }) });
     }
   }
   return result;

@@ -11,6 +11,7 @@ import * as songPage from './pages/songPage.js';
 import * as lyricsPage from './pages/lyricsPage.js';
 import * as chartPage from './pages/chartPage.js';
 import * as singPage from './pages/singPage.js';
+import { t } from './i18n.js';
 import { icon } from './icons.js';
 import { openSettingsDialog } from './pages/settingsDialog.js';
 import { closeAllDialogs } from './ui.js';
@@ -76,8 +77,13 @@ function showPage() {
 
 window.addEventListener('hashchange', showPage);
 
+// 上方導航列的字（index.html 裡寫的是中文，這裡換成現在的語言）
+document.title = t('本機KTV');
+document.getElementById('logo-name').textContent = t('本機KTV');
+document.getElementById('nav-library').textContent = t('歌曲庫');
+
 const settingsButton = document.getElementById('settings-button');
-settingsButton.innerHTML = icon('settings') + ' 設定';
+settingsButton.innerHTML = icon('settings') + ' ' + t('設定');
 settingsButton.addEventListener('click', function () {
   openSettingsDialog();
 });

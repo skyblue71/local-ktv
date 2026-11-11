@@ -3,25 +3,26 @@
 //   換過封面的話，可以「還原原本的封面」（YouTube 縮圖或檔案內附的封面）
 
 import * as api from '../api.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, helpTip, openDialog, showToast } from '../ui.js';
 
 export function openEditSongDialog(song, onSaved) {
   let restoreButton = '';
   if (song.cover_custom) {
-    restoreButton = '<button class="btn btn-small" id="cover-restore">' + icon('undo') + ' 還原封面</button>';
+    restoreButton = '<button class="btn btn-small" id="cover-restore">' + icon('undo') + ' ' + t('還原封面') + '</button>';
   }
 
   const html =
     '<div class="form-grid">' +
-    '  <label for="edit-title">歌名</label><input class="input" id="edit-title">' +
-    '  <label for="edit-artist">歌手</label><input class="input" id="edit-artist" placeholder="可以空白">' +
-    '  <span>封面</span>' +
+    '  <label for="edit-title">' + t('歌名') + '</label><input class="input" id="edit-title">' +
+    '  <label for="edit-artist">' + t('歌手') + '</label><input class="input" id="edit-artist" placeholder="' + t('可以空白') + '">' +
+    '  <span>' + t('封面') + '</span>' +
     '  <div class="cover-editor">' +
-    '    <div class="cover-drop" id="cover-drop" title="按這裡選圖片，或把圖片拖進來"></div>' +
+    '    <div class="cover-drop" id="cover-drop" title="' + t('按這裡選圖片，或把圖片拖進來') + '"></div>' +
     '    <div class="cover-actions">' +
-    '      <div><button class="btn btn-small" id="cover-choose">' + icon('image') + ' 選圖片</button>' +
-    helpTip('也可以把圖片拖到左邊，或複製圖片後按 Ctrl+V。\njpg、png、webp 都可以') + '</div>' +
+    '      <div><button class="btn btn-small" id="cover-choose">' + icon('image') + ' ' + t('選圖片') + '</button>' +
+    helpTip(t('也可以把圖片拖到左邊，或複製圖片後按 Ctrl+V。\njpg、png、webp 都可以')) + '</div>' +
     '      ' + restoreButton +
     '      <div class="small" id="cover-status"></div>' +
     '    </div>' +
@@ -29,12 +30,12 @@ export function openEditSongDialog(song, onSaved) {
     '  </div>' +
     '</div>' +
     '<div class="dialog-actions">' +
-    '  <button class="btn" id="edit-cancel">取消</button>' +
-    '  <button class="btn btn-primary" id="edit-save">' + icon('save') + ' 儲存</button>' +
+    '  <button class="btn" id="edit-cancel">' + t('取消') + '</button>' +
+    '  <button class="btn btn-primary" id="edit-save">' + icon('save') + ' ' + t('儲存') + '</button>' +
     '</div>';
 
   // 不管怎麼關（儲存、取消、✕、Esc、點外面），都要把「貼上」的監聽拿掉、釋放預覽圖
-  const dialog = openDialog('編輯歌曲資料', html, function () {
+  const dialog = openDialog(t('編輯歌曲資料'), html, function () {
     document.removeEventListener('paste', onPaste);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -68,7 +69,7 @@ export function openEditSongDialog(song, onSaved) {
       return;
     }
     if (!file.type.startsWith('image/')) {
-      showToast('這不是圖片檔', 'error');
+      showToast(t('這不是圖片檔'), 'error');
       return;
     }
     newCover = file;
@@ -77,7 +78,7 @@ export function openEditSongDialog(song, onSaved) {
     }
     previewUrl = URL.createObjectURL(file);
     showCover(previewUrl);
-    box.querySelector('#cover-status').textContent = '新封面：' + (file.name || '貼上的圖片');
+    box.querySelector('#cover-status').textContent = t('新封面：{name}', { name: file.name || t('貼上的圖片') });
   }
 
   const fileInput = box.querySelector('#cover-file');
@@ -132,13 +133,13 @@ export function openEditSongDialog(song, onSaved) {
     restore.addEventListener('click', async function () {
       try {
         await api.restoreCover(song.id);
-        showToast('已還原原本的封面', 'ok');
+        showToast(t('已還原原本的封面'), 'ok');
         close();
         if (onSaved) {
           onSaved();
         }
       } catch (error) {
-        showToast('還原失敗：' + error.message, 'error');
+        showToast(t('還原失敗：{message}', { message: error.message }), 'error');
       }
     });
   }
@@ -147,7 +148,7 @@ export function openEditSongDialog(song, onSaved) {
   saveButton.addEventListener('click', async function () {
     const title = titleInput.value.trim();
     if (title === '') {
-      showToast('歌名不能空白', 'error');
+      showToast(t('歌名不能空白'), 'error');
       return;
     }
     saveButton.disabled = true;
@@ -156,16 +157,16 @@ export function openEditSongDialog(song, onSaved) {
         await api.updateSong(song.id, { title: title, artist: artistInput.value.trim() });
       }
       if (newCover) {
-        box.querySelector('#cover-status').textContent = '上傳封面中…';
+        box.querySelector('#cover-status').textContent = t('上傳封面中…');
         await api.uploadCover(song.id, newCover);
       }
-      showToast('已儲存', 'ok');
+      showToast(t('已儲存'), 'ok');
       close();
       if (onSaved) {
         onSaved();
       }
     } catch (error) {
-      showToast('儲存失敗：' + error.message, 'error');
+      showToast(t('儲存失敗：{message}', { message: error.message }), 'error');
       saveButton.disabled = false;
     }
   });

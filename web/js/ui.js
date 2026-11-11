@@ -1,5 +1,7 @@
 // 畫面小工具：提示訊息、對話方塊、時間格式…（每一頁都會用到）
 
+import { t } from './i18n.js';
+
 // 把文字裡的特殊符號換掉，避免放進 HTML 時出問題
 export function escapeHtml(text) {
   if (text === null || text === undefined) {
@@ -58,7 +60,7 @@ export function openDialog(title, bodyHtml, onClose, size) {
     '<div class="' + dialogClass + '">' +
     '  <div class="dialog-header">' +
     '    <h3>' + escapeHtml(title) + '</h3>' +
-    '    <button class="btn btn-icon btn-ghost dialog-close" title="關閉" aria-label="關閉">' +
+    '    <button class="btn btn-icon btn-ghost dialog-close" title="' + t('關閉') + '" aria-label="' + t('關閉') + '">' +
     '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>' +
     '  </div>' +
     '  <div class="dialog-body">' + bodyHtml + '</div>' +
@@ -120,7 +122,7 @@ export function confirmAction(message) {
 //   說明裡的 \n 會換行
 
 export function helpTip(text) {
-  return '<button type="button" class="help-tip" data-help="' + escapeHtml(text) + '" aria-label="說明">?</button>';
+  return '<button type="button" class="help-tip" data-help="' + escapeHtml(text) + '" aria-label="' + t('說明') + '">?</button>';
 }
 
 let helpBubble = null;     // 現在打開的說明泡泡

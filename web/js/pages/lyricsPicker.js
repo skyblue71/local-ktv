@@ -30,6 +30,7 @@
 //   picker.destroy()               不用了（關掉對話方塊、離開頁面）
 
 import * as api from '../api.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, helpTip } from '../ui.js';
 import { LyricsListen } from './lyricsListen.js';
@@ -38,9 +39,9 @@ import {
 } from './lyricsResults.js';
 import { changedNames } from './songNames.js';
 
-const LATER_TIP = '沒有歌詞也可以先加入，之後到「編輯歌詞」再找';
-const SEARCH_TIP = '試試看：只打歌名、換成原文歌名（日文、英文），' +
-  '或去掉「Official Music Video」這類多餘的字';
+const LATER_TIP = t('沒有歌詞也可以先加入，之後到「編輯歌詞」再找');
+const SEARCH_TIP = t('試試看：只打歌名、換成原文歌名（日文、英文），') +
+  t('或去掉「Official Music Video」這類多餘的字');
 
 // 兩份歌詞文字是不是一樣（換行寫法、前後空白不算）
 function sameText(a, b) {
@@ -71,13 +72,14 @@ export class LyricsPicker {
 
     area.innerHTML =
       '<div class="picker-search">' +
-      '  <input class="input" data-role="title" placeholder="歌名" aria-label="搜尋的歌名">' +
-      '  <input class="input" data-role="artist" placeholder="歌手" aria-label="搜尋的歌手">' +
-      '  <button type="button" class="btn btn-icon btn-primary" data-role="search" title="搜尋" aria-label="搜尋">' +
+      '  <input class="input" data-role="title" placeholder="' + t('歌名') + '" aria-label="' + t('搜尋的歌名') + '">' +
+      '  <input class="input" data-role="artist" placeholder="' + t('歌手') + '" aria-label="' + t('搜尋的歌手') + '">' +
+      '  <button type="button" class="btn btn-icon btn-primary" data-role="search" title="' + t('搜尋') +
+      '" aria-label="' + t('搜尋') + '">' +
       icon('search') + '</button>' +
       '</div>' +
       '<div class="picker-status small" data-role="status"></div>' +
-      '<div class="search-results picker-results" data-role="results" role="radiogroup" aria-label="歌詞"></div>';
+      '<div class="search-results picker-results" data-role="results" role="radiogroup" aria-label="' + t('歌詞') + '"></div>';
 
     const picker = this;
     this.part('search').addEventListener('click', function () {
@@ -199,12 +201,12 @@ export class LyricsPicker {
       if (this.options.allowNone) {
         tip = LATER_TIP;
       }
-      this.setStatus('請先打歌名' + helpTip(tip));
+      this.setStatus(t('請先打歌名') + helpTip(tip));
       return;
     }
 
     this.stopListen();
-    this.setStatus('搜尋歌詞中…');
+    this.setStatus(t('搜尋歌詞中…'));
     this.part('results').innerHTML = '';
     let results = [];
     let failed = '';
@@ -227,7 +229,7 @@ export class LyricsPicker {
     this.render();
 
     if (failed !== '') {
-      this.setStatus('搜尋失敗：' + escapeHtml(failed) + helpTip(SEARCH_TIP));
+      this.setStatus(t('搜尋失敗：{message}', { message: escapeHtml(failed) }) + helpTip(SEARCH_TIP));
       return;
     }
     // 有歌了：再拿每一份跟歌聲比，最準的排前面
@@ -269,7 +271,7 @@ export class LyricsPicker {
   // 每一份歌詞跟這首歌的歌聲比對（伺服器 lyrics/match），標出時間準不準，最準的排前面
   async runMatch() {
     const myResults = this.results;
-    this.matchNote = '<p class="muted small">比對中…</p>';
+    this.matchNote = '<p class="muted small">' + t('比對中…') + '</p>';
     this.render();
     let answer = null;
     let failed = '';
@@ -286,7 +288,7 @@ export class LyricsPicker {
       return;   // 比對的時候又搜尋了一次
     }
     if (answer === null) {
-      this.matchNote = '<p class="muted small">比對失敗' + helpTip(failed + '\n先照長度排') + '</p>';
+      this.matchNote = '<p class="muted small">' + t('比對失敗') + helpTip(failed + '\n' + t('先照長度排')) + '</p>';
       this.render();
       return;
     }
@@ -352,7 +354,7 @@ export class LyricsPicker {
       this.lastPicked = item;
       await this.fillNames(item);
     } else if (this.saveError === '') {
-      this.saveError = '沒有存到';
+      this.saveError = t('沒有存到');
     }
     this.saving = false;
     this.updateChosen();
@@ -370,7 +372,7 @@ export class LyricsPicker {
         this.options.onSongChange(this.song);
       }
     } catch (error) {
-      this.saveError = '補歌名、歌手失敗：' + error.message;
+      this.saveError = t('補歌名、歌手失敗：{message}', { message: error.message });
     }
   }
 
@@ -424,16 +426,16 @@ export class LyricsPicker {
     }
     const problem = checkProblem(this.currentCheck);
     if (problem === '') {
-      return '<p class="small current-check ok-text">' + icon('check') + ' 你現在的歌詞跟大部分版本一樣</p>';
+      return '<p class="small current-check ok-text">' + icon('check') + ' ' + t('你現在的歌詞跟大部分版本一樣') + '</p>';
     }
-    let tip = '網路上的歌詞各自對齊這首歌，大部分放的時間跟你的不一樣。';
+    let tip = t('網路上的歌詞各自對齊這首歌，大部分放的時間跟你的不一樣。');
     const detail = checkDetail(this.currentCheck);
     if (detail !== '') {
       tip += '\n' + detail;
     }
-    tip += '\n換一份「時間準」的，或改這幾句的時間';
-    return '<p class="small current-check warn-text">' + icon('warn') + ' 你現在的歌詞' +
-      escapeHtml(problem) + helpTip(tip) + '</p>';
+    tip += t('\n換一份「時間準」的，或改這幾句的時間');
+    return '<p class="small current-check warn-text">' + icon('warn') + ' ' +
+      t('你現在的歌詞{problem}', { problem: escapeHtml(problem) }) + helpTip(tip) + '</p>';
   }
 
   render() {
@@ -450,7 +452,8 @@ export class LyricsPicker {
     // 加歌時：最後一列「不用歌詞」（一份都沒選 = 選這一列）
     if (this.options.allowNone && this.options.currentLrc() === null && this.searched) {
       html += choiceRowHtml(-1, this.chosen < 0,
-        '<div class="result-title">不用歌詞</div><div class="muted small">之後可以到「編輯歌詞」再找</div>',
+        '<div class="result-title">' + t('不用歌詞') + '</div><div class="muted small">' +
+        t('之後可以到「編輯歌詞」再找') + '</div>',
         '', 'result-none');
     }
     box.innerHTML = html;
@@ -460,34 +463,34 @@ export class LyricsPicker {
 
   statusHtml() {
     if (this.saving) {
-      return '儲存中…';
+      return t('儲存中…');
     }
     const beforeAdd = this.options.currentLrc() === null;
     let text = '';
     if (!this.searched) {
       if (beforeAdd) {
-        text = '<span class="muted">選好歌曲就會自動找</span>';
+        text = '<span class="muted">' + t('選好歌曲就會自動找') + '</span>';
       }
     } else if (this.results.length === 0) {
       let tip = SEARCH_TIP;
       if (this.options.allowNone) {
         tip += '\n' + LATER_TIP;
       }
-      text = '找不到「' + escapeHtml(this.lastQuery) + '」' + helpTip(tip);
+      text = t('找不到「{query}」', { query: escapeHtml(this.lastQuery) }) + helpTip(tip);
     } else {
-      let tip = '點一列就換成那一份。按 ▶ 可以先聽聽看字幕準不準\n\n' +
-        '換了會影響：字幕和評分條重做、整首移動歸零。\n' +
-        '不會影響：你修過的譜、裁切。\n你調過的字，句子文字一樣的才留著';
+      let tip = t('點一列就換成那一份。按 ▶ 可以先聽聽看字幕準不準\n\n') +
+        t('換了會影響：字幕和評分條重做、整首移動歸零。\n') +
+        t('不會影響：你修過的譜、裁切。\n你調過的字，句子文字一樣的才留著');
       if (beforeAdd) {
-        tip = '點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本';
+        tip = t('點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本');
       }
-      text = '<span class="muted">找到 ' + this.results.length + ' 份</span>' + helpTip(tip);
+      text = '<span class="muted">' + t('找到 {count} 份', { count: this.results.length }) + '</span>' + helpTip(tip);
     }
     if (this.saveError !== '') {
-      text += ' <span class="warn-text">儲存失敗：' + escapeHtml(this.saveError) + '</span>';
+      text += ' <span class="warn-text">' + t('儲存失敗：{message}', { message: escapeHtml(this.saveError) }) + '</span>';
     }
     if (this.stale) {
-      text += ' <span class="warn-text">改了搜尋的字，按搜尋鍵更新</span>';
+      text += ' <span class="warn-text">' + t('改了搜尋的字，按搜尋鍵更新') + '</span>';
     }
     return text;
   }

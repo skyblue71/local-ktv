@@ -15,32 +15,33 @@ import { applyQuietSetting } from '../game/quietParts.js';
 import { splitAtSyllables } from '../game/syllableBars.js';
 import { fillMissed } from '../game/twoEars.js';
 import { isUnheardNote } from '../game/scorer.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings } from '../settings.js';
 import { confirmAction, escapeHtml, helpTip, showToast } from '../ui.js';
 
 // 小問號裡的說明
 const HELP =
-  '拖評分條：移動（左右＝時間，上下＝音高）\n' +
-  '拉評分條的頭尾：變長、變短\n' +
-  '在空白的地方拖一下：新增\n' +
-  '虛線框：AI 有聽到、但沒評分的音，點一下加進來\n' +
-  '淡淡的線：AI 聽到的原唱音高\n' +
-  '點最上面的時間尺：從那裡播放\n\n' +
-  '下面那一排字：字幕每個字的時間\n' +
-  '拖一個字：移動；拉頭尾：改開始、結束\n' +
-  '評分條會跟著字走（你修過譜的話不會動）\n' +
-  '選一個粉紅色的字按 Delete：這個字還原\n\n' +
-  '空白鍵：播放／暫停\n' +
-  'Delete：刪除\n' +
-  '↑ ↓：改音高\n' +
-  'Ctrl+Z：復原\n\n' +
-  '藍色是 AI 的，粉紅色是你畫的或改過的。改了會自動存檔\n\n' +
-  '改過評分條之後，唱歌就用你修的譜：\n' +
-  '之後換歌詞、調字、改「清掉小聲雜音」，評分條都不會再動。\n' +
-  '「還原 AI 的譜」：評分條回到跟著字走。\n' +
-  '「還原字的時間」：你調過的字回到程式算的';
-const TONE_HELP = '播放時，播到評分條就發出那個音。\n跟原唱一起聽，就知道評分條對不對';
+  t('拖評分條：移動（左右＝時間，上下＝音高）\n') +
+  t('拉評分條的頭尾：變長、變短\n') +
+  t('在空白的地方拖一下：新增\n') +
+  t('虛線框：AI 有聽到、但沒評分的音，點一下加進來\n') +
+  t('淡淡的線：AI 聽到的原唱音高\n') +
+  t('點最上面的時間尺：從那裡播放\n\n') +
+  t('下面那一排字：字幕每個字的時間\n') +
+  t('拖一個字：移動；拉頭尾：改開始、結束\n') +
+  t('評分條會跟著字走（你修過譜的話不會動）\n') +
+  t('選一個粉紅色的字按 Delete：這個字還原\n\n') +
+  t('空白鍵：播放／暫停\n') +
+  t('Delete：刪除\n') +
+  t('↑ ↓：改音高\n') +
+  t('Ctrl+Z：復原\n\n') +
+  t('藍色是 AI 的，粉紅色是你畫的或改過的。改了會自動存檔\n\n') +
+  t('改過評分條之後，唱歌就用你修的譜：\n') +
+  t('之後換歌詞、調字、改「清掉小聲雜音」，評分條都不會再動。\n') +
+  t('「還原 AI 的譜」：評分條回到跟著字走。\n') +
+  t('「還原字的時間」：你調過的字回到程式算的');
+const TONE_HELP = t('播放時，播到評分條就發出那個音。\n跟原唱一起聽，就知道評分條對不對');
 
 const SAVE_DELAY = 800;     // 改完幾毫秒後存檔（連續改的時候不要一直存）
 const ZOOM_STEP = 1.5;      // 放大、縮小一次差幾倍
@@ -58,7 +59,7 @@ export async function enter(app, id) {
   page = { songId: id, loop: 0, saveTimer: null, saving: false, dirty: false, drag: null,
     player: null, tone: null, lastTime: '', lastPlaying: null };
   const myPage = page;
-  app.innerHTML = '<div class="page"><p class="muted">載入中…</p></div>';
+  app.innerHTML = '<div class="page"><p class="muted">' + t('載入中…') + '</p></div>';
 
   let results;
   try {
@@ -69,8 +70,8 @@ export async function enter(app, id) {
     results = await Promise.all([api.getSong(id), api.getPitch(id), api.getLyrics(id), api.getChart(id), wordsRequest]);
   } catch (error) {
     if (page === myPage) {
-      app.innerHTML = '<div class="page"><p>沒辦法修譜：' + escapeHtml(error.message) + '</p>' +
-        '<a class="btn" href="#/song/' + encodeURIComponent(id) + '">返回</a></div>';
+      app.innerHTML = '<div class="page"><p>' + t('沒辦法修譜：{reason}', { reason: escapeHtml(error.message) }) + '</p>' +
+        '<a class="btn" href="#/song/' + encodeURIComponent(id) + '">' + t('返回') + '</a></div>';
     }
     return;
   }
@@ -109,7 +110,7 @@ export function leave() {
   }
   if (page.dirty) {
     api.saveChart(page.songId, page.model.plainNotes()).catch(function () {
-      showToast('修譜沒存到，請再改一次', 'error');
+      showToast(t('修譜沒存到，請再改一次'), 'error');
     });
   }
   if (page.player) {
@@ -146,29 +147,29 @@ function render(app) {
     '<div class="page chart-page">' +
     '  <a href="#/song/' + encodeURIComponent(page.songId) + '" class="back-link">' + icon('back') + escapeHtml(page.song.title) + '</a>' +
     '  <div class="chart-head">' +
-    '    <h1>修譜' + helpTip(HELP) + '</h1>' +
+    '    <h1>' + t('修譜') + helpTip(HELP) + '</h1>' +
     '    <span class="muted small" id="chart-status"></span>' +
     '  </div>' +
     '  <div class="chart-toolbar">' +
-    '    <button class="btn btn-primary" id="chart-play" disabled>載入中…</button>' +
+    '    <button class="btn btn-primary" id="chart-play" disabled>' + t('載入中…') + '</button>' +
     '    <span class="chart-time" id="chart-time">0:00.0</span>' +
-    '    <label class="check"><input type="checkbox" id="chart-tone" checked> 評分條的音' + helpTip(TONE_HELP) + '</label>' +
+    '    <label class="check"><input type="checkbox" id="chart-tone" checked> ' + t('評分條的音') + helpTip(TONE_HELP) + '</label>' +
     '    <span class="toolbar-space"></span>' +
-    '    <button class="btn btn-small" id="chart-zoom-out" title="縮小">－</button>' +
-    '    <button class="btn btn-small" id="chart-zoom-in" title="放大">＋</button>' +
-    '    <button class="btn btn-small" id="chart-undo" title="Ctrl+Z">' + icon('undo') + ' 復原</button>' +
-    '    <button class="btn btn-small" id="chart-delete" title="Delete">刪除</button>' +
-    '    <button class="btn btn-small btn-ghost" id="chart-reset">還原 AI 的譜</button>' +
-    '    <button class="btn btn-small btn-ghost" id="words-reset">還原字的時間</button>' +
+    '    <button class="btn btn-small" id="chart-zoom-out" title="' + t('縮小') + '">－</button>' +
+    '    <button class="btn btn-small" id="chart-zoom-in" title="' + t('放大') + '">＋</button>' +
+    '    <button class="btn btn-small" id="chart-undo" title="Ctrl+Z">' + icon('undo') + ' ' + t('復原') + '</button>' +
+    '    <button class="btn btn-small" id="chart-delete" title="Delete">' + t('刪除') + '</button>' +
+    '    <button class="btn btn-small btn-ghost" id="chart-reset">' + t('還原 AI 的譜') + '</button>' +
+    '    <button class="btn btn-small btn-ghost" id="words-reset">' + t('還原字的時間') + '</button>' +
     '  </div>' +
     '  <div class="chart-box"><canvas id="chart-canvas"></canvas></div>' +
-    '  <input type="range" class="chart-scroll" id="chart-scroll" min="0" max="1" step="0.1" value="0" title="左右捲動">' +
+    '  <input type="range" class="chart-scroll" id="chart-scroll" min="0" max="1" step="0.1" value="0" title="' + t('左右捲動') + '">' +
     '</div>';
 
   if (page.hasChart) {
-    setStatus('用的是你修的譜');
+    setStatus(t('用的是你修的譜'));
   } else {
-    setStatus('用的是 AI 的譜');
+    setStatus(t('用的是 AI 的譜'));
   }
 
   const canvas = document.getElementById('chart-canvas');
@@ -243,7 +244,7 @@ async function loadAudio(myPage) {
   } catch (error) {
     player.destroy();
     if (page === myPage) {
-      document.getElementById('chart-play').textContent = '音樂載入失敗';
+      document.getElementById('chart-play').textContent = t('音樂載入失敗');
     }
     return;
   }
@@ -281,9 +282,9 @@ function updatePlayButton() {
   }
   page.lastPlaying = page.player.playing;
   if (page.player.playing) {
-    button.innerHTML = icon('pause') + ' 暫停';
+    button.innerHTML = icon('pause') + ' ' + t('暫停');
   } else {
-    button.innerHTML = icon('play') + ' 播放';
+    button.innerHTML = icon('play') + ' ' + t('播放');
   }
 }
 
@@ -776,7 +777,7 @@ function restoreSelectedWord() {
 // 把整份「你調過的字」存到伺服器，換成重做好的字幕；沒修過譜的話，評分條跟著字重排
 async function sendWords(words) {
   const myPage = page;
-  setStatus('儲存中…');
+  setStatus(t('儲存中…'));
   let result;
   try {
     if (words.length === 0) {
@@ -788,7 +789,7 @@ async function sendWords(words) {
     if (page !== myPage) {
       return;
     }
-    setStatus('字的時間沒存到：' + error.message);
+    setStatus(t('字的時間沒存到：{reason}', { reason: error.message }));
     // 畫面上拖過的字放回伺服器現在的樣子
     try {
       const data = await api.getLyrics(page.songId);
@@ -805,7 +806,7 @@ async function sendWords(words) {
   }
   page.words = result.words;
   showLyrics(result.lyrics);
-  setStatus('字的時間已儲存 ✓');
+  setStatus(t('字的時間已儲存 ✓'));
 }
 
 function showLyrics(lyrics) {
@@ -822,7 +823,7 @@ async function resetWords() {
   if (page.words.length === 0) {
     return;
   }
-  if (!confirmAction('還原字的時間？你調過的 ' + page.words.length + ' 個字會回到程式算的時間。')) {
+  if (!confirmAction(t('還原字的時間？你調過的 {count} 個字會回到程式算的時間。', { count: page.words.length }))) {
     return;
   }
   sendWords([]);
@@ -852,7 +853,7 @@ function changed() {
   page.ghosts = findGhosts();
   updateButtons();
   page.dirty = true;
-  setStatus('儲存中…');
+  setStatus(t('儲存中…'));
   if (page.saveTimer) {
     clearTimeout(page.saveTimer);
   }
@@ -873,13 +874,13 @@ async function saveNow() {
       return;
     }
     page.hasChart = true;
-    setStatus('已儲存 ✓');
+    setStatus(t('已儲存 ✓'));
   } catch (error) {
     if (page !== myPage) {
       return;
     }
     page.dirty = true;
-    setStatus('儲存失敗：' + error.message);
+    setStatus(t('儲存失敗：{reason}', { reason: error.message }));
   }
   page.saving = false;
   updateButtons();
@@ -890,10 +891,10 @@ async function saveNow() {
 
 async function resetToAi() {
   if (!page.hasChart && !page.dirty) {
-    showToast('現在用的就是 AI 的譜');
+    showToast(t('現在用的就是 AI 的譜'));
     return;
   }
-  if (!confirmAction('還原成 AI 的譜？你修的地方會全部不見。')) {
+  if (!confirmAction(t('還原成 AI 的譜？你修的地方會全部不見。'))) {
     return;
   }
   if (page.saveTimer) {
@@ -904,13 +905,13 @@ async function resetToAi() {
   try {
     await api.deleteChart(page.songId);
   } catch (error) {
-    showToast('還原失敗：' + error.message, 'error');
+    showToast(t('還原失敗：{reason}', { reason: error.message }), 'error');
     return;
   }
   page.hasChart = false;
   page.model.load(page.aiNotes);
   page.ghosts = findGhosts();
-  setStatus('用的是 AI 的譜');
+  setStatus(t('用的是 AI 的譜'));
   updateButtons();
 }
 

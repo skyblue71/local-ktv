@@ -27,6 +27,7 @@ import { applyQuietSetting } from '../game/quietParts.js';
 import { splitAtSyllables } from '../game/syllableBars.js';
 import { fillMissed } from '../game/twoEars.js';
 import { lyricsInRange, notesInRange, trimEnd, trimStart } from '../game/trimRange.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings, saveSettings } from '../settings.js';
 import { escapeHtml, formatTime, helpTip } from '../ui.js';
@@ -34,8 +35,8 @@ import { showResult } from './resultView.js';
 import { openSettingsDialog } from './settingsDialog.js';
 
 const SINGER_COLORS = ['#4ff0ff', '#ff7ad9'];  // 第一位、第二位歌手的顏色
-const PLAY_LABEL = icon('play') + ' 繼續';     // 暫停中，按了會繼續
-const PAUSE_LABEL = icon('pause') + ' 暫停';   // 播放中，按了會暫停
+const PLAY_LABEL = icon('play') + ' ' + t('繼續');     // 暫停中，按了會繼續
+const PAUSE_LABEL = icon('pause') + ' ' + t('暫停');   // 播放中，按了會暫停
 
 let page = null;  // 這一頁用到的東西都放這裡，離開時一起清掉
 
@@ -63,7 +64,7 @@ export async function enter(app, songId, query) {
   const myPage = page;
 
   app.innerHTML = pageHtml(songId);
-  setOverlay('<div class="loading-text" id="loading-text">載入歌曲中…</div>');
+  setOverlay('<div class="loading-text" id="loading-text">' + t('載入歌曲中…') + '</div>');
 
   try {
     // 你修過的譜（讀不到的話，當作沒修過）
@@ -82,7 +83,7 @@ export async function enter(app, songId, query) {
     lyricsData.lyrics = applyQuietSetting(lyricsData.lyrics, page.settings.quietDb, page.pitch);
 
     if (page.testMode && !page.song.has_vocals) {
-      throw new Error('這首歌沒有分離出人聲，不能用測試模式。');
+      throw new Error(t('這首歌沒有分離出人聲，不能用測試模式。'));
     }
 
     document.getElementById('sing-title').textContent = page.song.title;
@@ -109,7 +110,7 @@ export async function enter(app, songId, query) {
     await page.player.load(api.audioUrl(songId, 'instrumental'), vocalsUrl, function (ratio) {
       const text = document.getElementById('loading-text');
       if (text) {
-        text.textContent = '載入音樂中… ' + Math.round(ratio * 100) + '%';
+        text.textContent = t('載入音樂中… {percent}%', { percent: Math.round(ratio * 100) });
       }
     });
     if (page !== myPage) {
@@ -160,8 +161,8 @@ export async function enter(app, songId, query) {
   } catch (error) {
     setOverlay(
       '<div class="overlay-message">' +
-      '  <h2>無法開始</h2><p>' + escapeHtml(error.message) + '</p>' +
-      '  <a class="btn" href="#/song/' + encodeURIComponent(songId) + '">返回</a>' +
+      '  <h2>' + t('無法開始') + '</h2><p>' + escapeHtml(error.message) + '</p>' +
+      '  <a class="btn" href="#/song/' + encodeURIComponent(songId) + '">' + t('返回') + '</a>' +
       '</div>');
   }
 }
@@ -205,36 +206,36 @@ function pageHtml(songId) {
     '  <div class="sing-background" id="sing-bg"></div>' +
     '  <video class="sing-video hidden" id="sing-video" muted playsinline preload="auto"></video>' +
     '  <div class="sing-top">' +
-    '    <a class="btn btn-ghost" href="#/song/' + encodeURIComponent(songId) + '">' + icon('close') + ' 離開</a>' +
+    '    <a class="btn btn-ghost" href="#/song/' + encodeURIComponent(songId) + '">' + icon('close') + ' ' + t('離開') + '</a>' +
     '    <div class="sing-title">' +
     '      <div class="sing-song-title" id="sing-title"></div>' +
     '      <div class="sing-song-artist" id="sing-artist"></div>' +
     '    </div>' +
     '    <div class="sing-hud">' +
     '      <div class="hud-item"><div class="hud-label">COMBO</div><div class="hud-value" id="combo-value">0</div></div>' +
-    '      <div class="hud-item"><div class="hud-label">得分</div><div class="hud-value hud-score" id="score-value">0.0</div></div>' +
+    '      <div class="hud-item"><div class="hud-label">' + t('得分') + '</div><div class="hud-value hud-score" id="score-value">0.0</div></div>' +
     '    </div>' +
-    '    <button class="btn btn-ghost" id="sing-settings" title="設定（會先暫停）">' + icon('settings') + ' 設定</button>' +
+    '    <button class="btn btn-ghost" id="sing-settings" title="' + t('設定（會先暫停）') + '">' + icon('settings') + ' ' + t('設定') + '</button>' +
     '  </div>' +
     '  <div class="pitch-area">' +
     '    <canvas id="pitch-canvas"></canvas>' +
-    '    <div class="test-badge hidden" id="test-badge" title="原唱人聲自動唱">' + icon('flask') + ' 測試模式</div>' +
+    '    <div class="test-badge hidden" id="test-badge" title="' + t('原唱人聲自動唱') + '">' + icon('flask') + ' ' + t('測試模式') + '</div>' +
     '  </div>' +
     '  <div class="lyrics-area" id="lyrics-area"></div>' +
     '  <div class="sing-controls">' +
     '    <button class="btn" id="play-button">' + PAUSE_LABEL + '</button>' +
-    '    <button class="btn btn-ghost" id="restart-button">' + icon('refresh') + ' 重來</button>' +
-    '    <button class="btn btn-primary hidden" id="skip-intro">' + icon('skip') + ' 跳過前奏</button>' +
+    '    <button class="btn btn-ghost" id="restart-button">' + icon('refresh') + ' ' + t('重來') + '</button>' +
+    '    <button class="btn btn-primary hidden" id="skip-intro">' + icon('skip') + ' ' + t('跳過前奏') + '</button>' +
     '    <span class="time-label" id="time-label">0:00 / 0:00</span>' +
     '    <div class="seek-bar" id="seek-bar"><div class="seek-fill" id="seek-fill"></div></div>' +
     '    <div class="control-slider" id="guide-control">' +
-    '      <button class="btn btn-small guide-toggle" id="guide-toggle" title="快速鍵：G">導唱：關</button>' +
-    '      <input type="range" min="0" max="100" id="guide-slider" title="導唱音量">' +
+    '      <button class="btn btn-small guide-toggle" id="guide-toggle" title="' + t('快速鍵：G') + '">' + t('導唱：關') + '</button>' +
+    '      <input type="range" min="0" max="100" id="guide-slider" title="' + t('導唱音量') + '">' +
     '    </div>' +
-    '    <label class="control-slider">伴奏 <input type="range" min="0" max="100" id="music-slider"></label>' +
-    '    <label class="control-slider" title="總音量">' + icon('volume') + ' <input type="range" min="0" max="100" id="master-slider" aria-label="總音量"></label>' +
-    '    <div class="mic-meter" title="麥克風音量"><div class="mic-meter-fill" id="mic-meter"></div></div>' +
-    '    <button class="btn btn-primary" id="finish-button">結束評分</button>' +
+    '    <label class="control-slider">' + t('伴奏') + ' <input type="range" min="0" max="100" id="music-slider"></label>' +
+    '    <label class="control-slider" title="' + t('總音量') + '">' + icon('volume') + ' <input type="range" min="0" max="100" id="master-slider" aria-label="' + t('總音量') + '"></label>' +
+    '    <div class="mic-meter" title="' + t('麥克風音量') + '"><div class="mic-meter-fill" id="mic-meter"></div></div>' +
+    '    <button class="btn btn-primary" id="finish-button">' + t('結束評分') + '</button>' +
     '  </div>' +
     '  <div class="sing-overlay" id="sing-overlay"><div class="overlay-box" id="overlay-box"></div></div>' +
     '</div>'
@@ -262,21 +263,21 @@ function trimText() {
   if (page.trimStart <= 0 && page.trimEnd >= page.player.getDuration()) {
     return '';
   }
-  return ' · 只唱 ' + formatTime(page.trimStart) + ' ～ ' + formatTime(page.trimEnd);
+  return t(' · 只唱 {start} ～ {end}', { start: formatTime(page.trimStart), end: formatTime(page.trimEnd) });
 }
 
 // 開始畫面：只放歌名、按鍵提示，詳細說明收在小問號裡
 function showStartScreen() {
-  let hint = '<kbd>空白鍵</kbd> 暫停';
+  let hint = '<kbd>' + t('空白鍵') + '</kbd> ' + t('暫停');
   if (page.player.hasVocals()) {
-    hint += '<kbd>G</kbd> 導唱';
+    hint += '<kbd>G</kbd> ' + t('導唱');
   }
-  let help = '建議戴耳機唱，伴奏才不會被麥克風收進去，評分比較準。\n' +
-    '男生唱女生的歌（或相反）也沒關係，高八度、低八度都算對。\n' +
-    '← → 鍵：倒退、快轉 5 秒';
+  let help = t('建議戴耳機唱，伴奏才不會被麥克風收進去，評分比較準。\n') +
+    t('男生唱女生的歌（或相反）也沒關係，高八度、低八度都算對。\n') +
+    t('← → 鍵：倒退、快轉 5 秒');
   if (page.testMode) {
-    hint = icon('flask') + ' 測試模式';
-    help = '不開麥克風，讓原唱人聲自己唱。\n分數應該很高（90 分以上），用來確認評分系統正常。';
+    hint = icon('flask') + ' ' + t('測試模式');
+    help = t('不開麥克風，讓原唱人聲自己唱。\n分數應該很高（90 分以上），用來確認評分系統正常。');
   }
   let artist = '';
   if (page.song.artist) {
@@ -294,8 +295,8 @@ function showStartScreen() {
     '  <p class="muted">' + artist + formatTime(page.trimEnd - page.trimStart) + trimText() + '</p>' +
     '  <p class="muted small start-hint">' + hint + helpTip(help) + '</p>' +
     '  <div class="button-row">' +
-    '    <button class="btn btn-primary btn-big start-button" id="start-button">' + icon('mic') + ' 開始</button>' +
-    '    <button class="btn btn-ghost" id="start-settings">' + icon('settings') + ' 設定</button>' +
+    '    <button class="btn btn-primary btn-big start-button" id="start-button">' + icon('mic') + ' ' + t('開始') + '</button>' +
+    '    <button class="btn btn-ghost" id="start-settings">' + icon('settings') + ' ' + t('設定') + '</button>' +
     '  </div>' +
     '</div>');
   document.getElementById('start-button').addEventListener('click', startSinging);
@@ -308,7 +309,7 @@ async function startSinging() {
   const myPage = page;
   const context = getAudioContext();
   await context.resume();
-  setOverlay('<div class="loading-text">開啟麥克風中…</div>');
+  setOverlay('<div class="loading-text">' + t('開啟麥克風中…') + '</div>');
 
   const singer = page.singers[0];
   const microphone = new Microphone(context);
@@ -321,15 +322,15 @@ async function startSinging() {
   } catch (error) {
     let extra = '';
     if (page.song.has_vocals) {
-      extra = '<a class="btn" href="#/sing/' + encodeURIComponent(page.songId) + '?test=1">改用測試模式</a>';
+      extra = '<a class="btn" href="#/sing/' + encodeURIComponent(page.songId) + '?test=1">' + t('改用測試模式') + '</a>';
     }
     setOverlay(
       '<div class="overlay-message">' +
-      '  <h2>無法使用麥克風</h2>' +
+      '  <h2>' + t('無法使用麥克風') + '</h2>' +
       '  <p>' + escapeHtml(error.message) + '</p>' +
-      '  <p class="muted">請確認有接麥克風' +
-      helpTip('瀏覽器擋住的話：按網址列左邊的圖示，允許使用麥克風') + '</p>' +
-      '  <div class="button-row"><button class="btn btn-primary" id="retry-mic">再試一次</button>' + extra + '</div>' +
+      '  <p class="muted">' + t('請確認有接麥克風') +
+      helpTip(t('瀏覽器擋住的話：按網址列左邊的圖示，允許使用麥克風')) + '</p>' +
+      '  <div class="button-row"><button class="btn btn-primary" id="retry-mic">' + t('再試一次') + '</button>' + extra + '</div>' +
       '</div>');
     document.getElementById('retry-mic').addEventListener('click', startSinging);
     return;
@@ -419,7 +420,7 @@ function countdown() {
     setOverlay(
       '<div class="countdown-area">' +
       '  <div class="countdown-number" id="countdown-number"></div>' +
-      '  <button class="btn btn-big skip-countdown" id="skip-countdown">跳過 ' + icon('skip') + '<kbd>空白鍵</kbd></button>' +
+      '  <button class="btn btn-big skip-countdown" id="skip-countdown">' + t('跳過') + ' ' + icon('skip') + '<kbd>' + t('空白鍵') + '</kbd></button>' +
       '</div>');
     document.getElementById('skip-countdown').addEventListener('click', done);
     document.addEventListener('keydown', onCountdownKey);
@@ -581,10 +582,10 @@ function setGuideVolume(volume) {
   document.getElementById('guide-slider').value = volume;
   const button = document.getElementById('guide-toggle');
   if (volume > 0) {
-    button.textContent = '導唱：開';
+    button.textContent = t('導唱：開');
     button.classList.add('on');
   } else {
-    button.textContent = '導唱：關';
+    button.textContent = t('導唱：關');
     button.classList.remove('on');
   }
 }
@@ -700,7 +701,7 @@ function applySettings(newSettings) {
   const quietChanged = old.quietDb !== newSettings.quietDb;
   const later = [];
   if (quietChanged) {
-    later.push('小聲雜音：重新進入這首歌後生效');   // 評分條是進來時排好的
+    later.push(t('小聲雜音：重新進入這首歌後生效'));   // 評分條是進來時排好的
   }
   if (!page.started) {
     // 還沒開始唱：評分標準直接換（麥克風按「開始」時才開，也會用新的）
@@ -708,18 +709,18 @@ function applySettings(newSettings) {
     if (later.length === 0) {
       return '';
     }
-    return '設定已儲存（' + later.join('；') + '）';
+    return t('設定已儲存（{later}）', { later: later.join(t('；')) });
   }
   if (scoringChanged) {
-    later.push('難度、八度：按「重來」後生效');
+    later.push(t('難度、八度：按「重來」後生效'));
   }
   if (micChanged) {
-    later.push('麥克風：下一首生效');
+    later.push(t('麥克風：下一首生效'));
   }
   if (later.length === 0) {
     return '';
   }
-  return '設定已儲存（' + later.join('；') + '）';
+  return t('設定已儲存（{later}）', { later: later.join(t('；')) });
 }
 
 // MV：打開／關掉、亮度
@@ -785,9 +786,9 @@ function updateSkipButton(now) {
   if (canSkip) {
     // 還沒唱過任何一個音 = 前奏，不然就是間奏
     const firstNote = nextNoteStart(-1);
-    let text = '跳過間奏';
+    let text = t('跳過間奏');
     if (nextStart === firstNote) {
-      text = '跳過前奏';
+      text = t('跳過前奏');
     }
     if (button.dataset.label !== text) {   // 每一格畫面都會跑到這裡，字有變才換
       button.dataset.label = text;
@@ -884,9 +885,9 @@ async function finish() {
   let saveMessage = '';
   let isNewBest = false;
   if (page.testMode) {
-    saveMessage = '測試模式的分數不會存進排行';
+    saveMessage = t('測試模式的分數不會存進排行');
   } else if (total === 0 || skippedCount > total * 0.5) {
-    saveMessage = '唱不到一半，這次不列入排行';
+    saveMessage = t('唱不到一半，這次不列入排行');
   } else {
     const oldBest = page.song.best_score;
     isNewBest = oldBest === null || oldBest === undefined || result.total > oldBest;
@@ -901,12 +902,12 @@ async function finish() {
         },
       });
       page.song.best_score = Math.max(oldBest || 0, result.total);
-      saveMessage = '分數已存進排行';
+      saveMessage = t('分數已存進排行');
       if (page.seeked) {
-        saveMessage += '（有跳過的部分不計分）';
+        saveMessage += t('（有跳過的部分不計分）');
       }
     } catch (error) {
-      saveMessage = '分數存檔失敗：' + error.message;
+      saveMessage = t('分數存檔失敗：{reason}', { reason: error.message });
     }
   }
   if (page !== myPage) {
@@ -917,7 +918,7 @@ async function finish() {
   overlay.classList.remove('hidden');
   showResult(document.getElementById('overlay-box'), result, {
     recordingUrl: page.recordingUrl,
-    recordingName: page.song.title + '-' + Math.round(result.total) + '分',
+    recordingName: t('{title}-{score}分', { title: page.song.title, score: Math.round(result.total) }),
     saveMessage: saveMessage,
     isNewBest: isNewBest,
     onRetry: restart,

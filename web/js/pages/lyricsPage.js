@@ -8,6 +8,7 @@ import * as api from '../api.js';
 import { getAudioContext } from '../audio/audioContext.js';
 import { SongPlayer } from '../audio/songPlayer.js';
 import { lineHtml } from '../game/lyricsView.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings, saveSettings } from '../settings.js';
 import { confirmAction, escapeHtml, formatTime, helpTip, showToast } from '../ui.js';
@@ -15,28 +16,30 @@ import { trimStart } from '../game/trimRange.js';
 import { LyricsPicker } from './lyricsPicker.js';
 
 // 小問號裡的說明（畫面上只放標題，要看的人再點）
+//（「{正確讀音}」的大括號另外接，才不會被當成 t() 要代入的名字）
 const FORMAT_HELP =
-  '每一行前面的 [分:秒.百分秒] 是這句開始唱的時間。沒有時間的純文字也可以，之後用「點按同步」補上。\n\n' +
-  '對唱：句子前面加「男：」「女：」「合：」（或 M: F: D:），字幕會換顏色，一直延續到下一個標記。' +
-  '例如 [00:12.00]女：第一句\n\n' +
-  '讀音標錯了：在字後面加 {正確讀音}。日文例如 私{わたし}；中文寫注音或拼音都可以，例如 還{ㄏㄨㄢˊ}，' +
-  '兩個字以上用空格隔開：還是{ㄏㄞˊ ㄕˋ}。讀音的拍數也會影響填色的速度\n\n' +
-  '按「儲存」會影響：字幕和評分條重做。\n' +
-  '不會影響：你修過的譜、裁切。\n' +
-  '句子的文字改了，你在「修譜」調過的那幾個字會回到程式算的';
-const OFFSET_HELP = '整首字幕一起移。\n字幕比歌聲早出來 → 按右邊（延後）\n字幕比歌聲晚 → 按左邊（提早）\n' +
-  '也可以直接打秒數，負的是提早\n\n' +
-  '會影響：字幕，和跟著字走的評分條。\n不會影響：你修過的譜、裁切';
-const ALIGN_HELP = '自動：程式自己把歌詞放到歌手唱的地方。歌詞檔準就照歌詞檔，不準就照 AI 聽到的。\n' +
-  '照歌詞檔：完全照歌詞檔的時間，可以自己整首提早、延後。\n自動放錯的歌，改選「照歌詞檔」\n\n' +
-  '換了會影響：這首歌的字幕和評分條重做。\n不會影響：你修過的譜、你調過的字、裁切。\n' +
-  '「回到預設」：自動、整首移動歸零、AI 認音節打開';
-const SYLLABLE_HELP = 'AI 聽出每個字、每一拍什麼時候唱，填色和評分條都照著走。\n' +
-  '關掉：每一句照歌詞檔的時間，句子裡照評分條把時間分給每個字。\n\n' +
-  '會影響：字幕每個字的時間、評分條在哪裡切開。\n不會影響：你修過的譜、你調過的字';
-const TAP_HELP = '會播放原曲。每一句開始唱的瞬間，按一下空白鍵（或大按鈕）。\n按錯了按 Backspace 退回上一句\n\n' +
-  '全部按完會存進歌詞檔（原本的時間會被換掉），字幕和評分條重做。\n' +
-  '要完全照你按的時間：「歌詞時間」選「照歌詞檔」。選「自動」的話程式還會再對一次';
+  t('每一行前面的 [分:秒.百分秒] 是這句開始唱的時間。沒有時間的純文字也可以，之後用「點按同步」補上。\n\n') +
+  t('對唱：句子前面加「男：」「女：」「合：」（或 M: F: D:），字幕會換顏色，一直延續到下一個標記。') +
+  t('例如 [00:12.00]女：第一句\n\n') +
+  t('讀音標錯了：在字後面加 ') + '{' + t('正確讀音') + '}' +
+  t('。日文例如 私{わたし}；中文寫注音或拼音都可以，例如 還{ㄏㄨㄢˊ}，') +
+  t('兩個字以上用空格隔開：還是{ㄏㄞˊ ㄕˋ}。讀音的拍數也會影響填色的速度\n\n') +
+  t('按「儲存」會影響：字幕和評分條重做。\n') +
+  t('不會影響：你修過的譜、裁切。\n') +
+  t('句子的文字改了，你在「修譜」調過的那幾個字會回到程式算的');
+const OFFSET_HELP = t('整首字幕一起移。\n字幕比歌聲早出來 → 按右邊（延後）\n字幕比歌聲晚 → 按左邊（提早）\n') +
+  t('也可以直接打秒數，負的是提早\n\n') +
+  t('會影響：字幕，和跟著字走的評分條。\n不會影響：你修過的譜、裁切');
+const ALIGN_HELP = t('自動：程式自己把歌詞放到歌手唱的地方。歌詞檔準就照歌詞檔，不準就照 AI 聽到的。\n') +
+  t('照歌詞檔：完全照歌詞檔的時間，可以自己整首提早、延後。\n自動放錯的歌，改選「照歌詞檔」\n\n') +
+  t('換了會影響：這首歌的字幕和評分條重做。\n不會影響：你修過的譜、你調過的字、裁切。\n') +
+  t('「回到預設」：自動、整首移動歸零、AI 認音節打開');
+const SYLLABLE_HELP = t('AI 聽出每個字、每一拍什麼時候唱，填色和評分條都照著走。\n') +
+  t('關掉：每一句照歌詞檔的時間，句子裡照評分條把時間分給每個字。\n\n') +
+  t('會影響：字幕每個字的時間、評分條在哪裡切開。\n不會影響：你修過的譜、你調過的字');
+const TAP_HELP = t('會播放原曲。每一句開始唱的瞬間，按一下空白鍵（或大按鈕）。\n按錯了按 Backspace 退回上一句\n\n') +
+  t('全部按完會存進歌詞檔（原本的時間會被換掉），字幕和評分條重做。\n') +
+  t('要完全照你按的時間：「歌詞時間」選「照歌詞檔」。選「自動」的話程式還會再對一次');
 
 let song = null;
 let savedLrc = '';    // 現在存著的歌詞（清單上標「✓ 已選」用）
@@ -44,11 +47,11 @@ let tapSync = null;   // 點按同步進行中的資料
 let picker = null;    // 上網搜尋歌詞的清單（跟「加入歌曲」同一個）
 
 export async function enter(app, id) {
-  app.innerHTML = '<div class="page"><p class="muted">載入中…</p></div>';
+  app.innerHTML = '<div class="page"><p class="muted">' + t('載入中…') + '</p></div>';
   try {
     song = await api.getSong(id);
   } catch (error) {
-    app.innerHTML = '<div class="page"><p>找不到這首歌。</p></div>';
+    app.innerHTML = '<div class="page"><p>' + t('找不到這首歌。') + '</p></div>';
     return;
   }
   const data = await api.getLyrics(id);
@@ -56,57 +59,57 @@ export async function enter(app, id) {
   app.innerHTML =
     '<div class="page">' +
     '  <a href="#/song/' + encodeURIComponent(song.id) + '" class="back-link">' + icon('back') + escapeHtml(song.title) + '</a>' +
-    '  <h1>編輯歌詞</h1>' +
+    '  <h1>' + t('編輯歌詞') + '</h1>' +
     '  <div class="two-columns editor-columns">' +
     '    <div>' +
     '      <section class="panel">' +
-    '        <h2>' + icon('search') + ' 網路上的歌詞</h2>' +
+    '        <h2>' + icon('search') + ' ' + t('網路上的歌詞') + '</h2>' +
     '        <div id="lyrics-picker"></div>' +
     '      </section>' +
     '      <section class="panel">' +
-    '        <h2>' + icon('text') + ' 歌詞文字' + helpTip(FORMAT_HELP) + '</h2>' +
+    '        <h2>' + icon('text') + ' ' + t('歌詞文字') + helpTip(FORMAT_HELP) + '</h2>' +
     '        <textarea class="input lrc-editor" id="lrc-text" spellcheck="false"></textarea>' +
     '        <div class="button-row">' +
-    '          <button class="btn btn-primary" id="save-button">' + icon('save') + ' 儲存</button>' +
+    '          <button class="btn btn-primary" id="save-button">' + icon('save') + ' ' + t('儲存') + '</button>' +
     '          <span class="muted small" id="save-status"></span>' +
     '        </div>' +
     '      </section>' +
     '      <section class="panel">' +
-    '        <h2>' + icon('clock') + ' 字幕時間</h2>' +
+    '        <h2>' + icon('clock') + ' ' + t('字幕時間') + '</h2>' +
     '        <div class="form-grid">' +
-    '          <span>歌詞時間' + helpTip(ALIGN_HELP) + '</span>' +
+    '          <span>' + t('歌詞時間') + helpTip(ALIGN_HELP) + '</span>' +
     '          <div class="button-row">' +
-    '            <label><input type="radio" name="align-mode" id="align-auto" value="auto"> 自動</label>' +
-    '            <label><input type="radio" name="align-mode" id="align-file" value="file"> 照歌詞檔</label>' +
-    '            <button class="btn btn-small btn-ghost" id="timing-reset">回到預設</button>' +
+    '            <label><input type="radio" name="align-mode" id="align-auto" value="auto"> ' + t('自動') + '</label>' +
+    '            <label><input type="radio" name="align-mode" id="align-file" value="file"> ' + t('照歌詞檔') + '</label>' +
+    '            <button class="btn btn-small btn-ghost" id="timing-reset">' + t('回到預設') + '</button>' +
     '          </div>' +
-    '          <span id="offset-label">整首移動' + helpTip(OFFSET_HELP) + '</span>' +
+    '          <span id="offset-label">' + t('整首移動') + helpTip(OFFSET_HELP) + '</span>' +
     '          <div class="offset-control" id="offset-row">' +
-    '            <span class="offset-end">提早</span>' +
+    '            <span class="offset-end">' + t('提早') + '</span>' +
     '            <button class="btn btn-small" data-offset="-1000">1</button>' +
     '            <button class="btn btn-small" data-offset="-500">0.5</button>' +
     '            <button class="btn btn-small" data-offset="-100">0.1</button>' +
     '            <label class="offset-value"><input class="input" id="offset-input" type="number" step="0.1"' +
-    ' aria-label="移動幾秒（負的是提早）"> 秒</label>' +
+    ' aria-label="' + t('移動幾秒（負的是提早）') + '"> ' + t('秒') + '</label>' +
     '            <button class="btn btn-small" data-offset="100">0.1</button>' +
     '            <button class="btn btn-small" data-offset="500">0.5</button>' +
     '            <button class="btn btn-small" data-offset="1000">1</button>' +
-    '            <span class="offset-end">延後</span>' +
-    '            <button class="btn btn-small btn-ghost hidden" id="offset-zero">歸零</button>' +
+    '            <span class="offset-end">' + t('延後') + '</span>' +
+    '            <button class="btn btn-small btn-ghost hidden" id="offset-zero">' + t('歸零') + '</button>' +
     '          </div>' +
-    '          <label for="syllable-ai">AI 認音節' + helpTip(SYLLABLE_HELP) + '</label>' +
+    '          <label for="syllable-ai">' + t('AI 認音節') + helpTip(SYLLABLE_HELP) + '</label>' +
     '          <div><input type="checkbox" class="switch" id="syllable-ai"></div>' +
     '        </div>' +
     '      </section>' +
     '      <section class="panel">' +
-    '        <h2>' + icon('target') + ' 點按同步' + helpTip(TAP_HELP) + '</h2>' +
+    '        <h2>' + icon('target') + ' ' + t('點按同步') + helpTip(TAP_HELP) + '</h2>' +
     '        <div id="tap-area">' +
-    '          <button class="btn" id="tap-start">' + icon('play') + ' 開始</button>' +
+    '          <button class="btn" id="tap-start">' + icon('play') + ' ' + t('開始') + '</button>' +
     '        </div>' +
     '      </section>' +
     '    </div>' +
     '    <section class="panel preview-panel">' +
-    '      <h2>' + icon('lyrics') + ' 預覽</h2>' +
+    '      <h2>' + icon('lyrics') + ' ' + t('預覽') + '</h2>' +
     '      <div id="lyrics-preview" class="lyrics-preview"></div>' +
     '    </section>' +
     '  </div>' +
@@ -132,15 +135,15 @@ export async function enter(app, id) {
     confirmChoose: function (inList) {
       const notes = [];
       if (!inList && savedLrc.trim() !== '') {
-        notes.push('現在的歌詞會被換掉（你自己改過的地方會不見）');
+        notes.push(t('現在的歌詞會被換掉（你自己改過的地方會不見）'));
       }
       if ((Number(song.lyrics_offset) || 0) !== 0) {
-        notes.push('字幕時間的移動會歸零');
+        notes.push(t('字幕時間的移動會歸零'));
       }
       if (notes.length === 0) {
         return true;
       }
-      return confirmAction('換成這一份歌詞？\n' + notes.join('\n'));
+      return confirmAction(t('換成這一份歌詞？\n') + notes.join('\n'));
     },
     onSongChange: function (newSong) {
       song = newSong;
@@ -201,11 +204,11 @@ export function leave() {
 // 存好回傳 true，失敗回傳 false
 async function saveLrc(source, resetOffset) {
   const status = document.getElementById('save-status');
-  status.textContent = '儲存中…';
+  status.textContent = t('儲存中…');
   try {
     const text = document.getElementById('lrc-text').value;
     const result = await api.saveLyrics(song.id, text, source, resetOffset);
-    status.textContent = '已儲存 ✓';
+    status.textContent = t('已儲存 ✓');
     // 歌詞換了：搜尋清單上的「✓ 已選」、「你現在的歌詞」那一行跟著換
     savedLrc = text;
     if (picker) {
@@ -214,12 +217,12 @@ async function saveLrc(source, resetOffset) {
     if (resetOffset === true && (Number(song.lyrics_offset) || 0) !== 0) {
       song.lyrics_offset = 0;
       showOffset(0);
-      status.textContent = '已儲存 ✓（字幕時間的移動歸零）';
+      status.textContent = t('已儲存 ✓（字幕時間的移動歸零）');
     }
     renderPreview(result.lyrics);
     return true;
   } catch (error) {
-    status.textContent = '儲存失敗：' + error.message;
+    status.textContent = t('儲存失敗：{message}', { message: error.message });
     return false;
   }
 }
@@ -237,20 +240,20 @@ function showOffset(milliseconds) {
 // 例如「延後 17.5 秒」「提早 0.3 秒」「不移動」
 function offsetText(milliseconds) {
   if (milliseconds > 0) {
-    return '字幕延後 ' + (milliseconds / 1000) + ' 秒';
+    return t('字幕延後 {seconds} 秒', { seconds: milliseconds / 1000 });
   }
   if (milliseconds < 0) {
-    return '字幕提早 ' + (-milliseconds / 1000) + ' 秒';
+    return t('字幕提早 {seconds} 秒', { seconds: -milliseconds / 1000 });
   }
-  return '字幕不移動';
+  return t('字幕不移動');
 }
 
 // 移動按鈕滑鼠移上去的說明，例如「提早 0.5 秒」
 function offsetButtonTitle(milliseconds) {
   if (milliseconds < 0) {
-    return '提早 ' + (-milliseconds / 1000) + ' 秒';
+    return t('提早 {seconds} 秒', { seconds: -milliseconds / 1000 });
   }
-  return '延後 ' + (milliseconds / 1000) + ' 秒';
+  return t('延後 {seconds} 秒', { seconds: milliseconds / 1000 });
 }
 
 // 連按好幾下時，一次存完再存下一次（同時送出的話，最後存到的可能不是最後按的數字）
@@ -273,7 +276,7 @@ async function saveOffset() {
     renderPreview(data.lyrics);
     showToast(offsetText(value), 'ok');
   } catch (error) {
-    showToast('設定失敗：' + error.message, 'error');
+    showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
 }
 
@@ -298,9 +301,9 @@ async function applyAutoAlign() {
     showAlignMode();
     const data = await api.getLyrics(song.id);
     renderPreview(data.lyrics);
-    showToast(auto ? '歌詞時間：自動' : '歌詞時間：照歌詞檔', 'ok');
+    showToast(auto ? t('歌詞時間：自動') : t('歌詞時間：照歌詞檔'), 'ok');
   } catch (error) {
-    showToast('設定失敗：' + error.message, 'error');
+    showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
 }
 
@@ -313,9 +316,9 @@ async function resetTiming() {
     document.getElementById('syllable-ai').checked = true;
     const data = await api.getLyrics(song.id);
     renderPreview(data.lyrics);
-    showToast('字幕時間回到預設', 'ok');
+    showToast(t('字幕時間回到預設'), 'ok');
   } catch (error) {
-    showToast('設定失敗：' + error.message, 'error');
+    showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
 }
 
@@ -326,13 +329,13 @@ async function applySyllableAi() {
     song = await api.updateSong(song.id, { lyrics_syllable_ai: checked });
     const data = await api.getLyrics(song.id);
     renderPreview(data.lyrics);
-    let message = '已關掉 AI 認音節（照音符平均分）';
+    let message = t('已關掉 AI 認音節（照音符平均分）');
     if (checked) {
-      message = '已打開 AI 認音節';
+      message = t('已打開 AI 認音節');
     }
     showToast(message, 'ok');
   } catch (error) {
-    showToast('設定失敗：' + error.message, 'error');
+    showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
 }
 
@@ -342,42 +345,42 @@ function renderPreview(lyrics) {
     return;
   }
   if (!lyrics || lyrics.lines.length === 0) {
-    box.innerHTML = '<p class="muted">還沒有歌詞。</p>';
+    box.innerHTML = '<p class="muted">' + t('還沒有歌詞。') + '</p>';
     return;
   }
   const settings = loadSettings();
   let html = '';
   if (!lyrics.synced) {
-    html += '<div class="notice">沒有時間軸' + helpTip('唱歌時不會有字幕，請用「點按同步」') + '</div>';
+    html += '<div class="notice">' + t('沒有時間軸') + helpTip(t('唱歌時不會有字幕，請用「點按同步」')) + '</div>';
   }
   // 自動對齊發現整首歌詞固定早／晚，已經自動移過
   const shift = Number(lyrics.auto_shift) || 0;
   if (Math.abs(shift) >= 0.1) {
-    let direction = '延後';
-    let reason = '偏早';
+    const seconds = Math.abs(shift).toFixed(2);
+    let notice = t('程式已自動把字幕延後 {seconds} 秒', { seconds: seconds });
+    let reason = t('這份歌詞的時間整首偏早，程式照歌聲自動移過了。\n不對的話，把「歌詞時間」改成「照歌詞檔」，再用「整首移動」調整');
     if (shift < 0) {
-      direction = '提早';
-      reason = '偏晚';
+      notice = t('程式已自動把字幕提早 {seconds} 秒', { seconds: seconds });
+      reason = t('這份歌詞的時間整首偏晚，程式照歌聲自動移過了。\n不對的話，把「歌詞時間」改成「照歌詞檔」，再用「整首移動」調整');
     }
-    html += '<div class="notice small">程式已自動把字幕' + direction + ' ' + Math.abs(shift).toFixed(2) + ' 秒' +
-      helpTip('這份歌詞的時間整首' + reason + '，程式照歌聲自動移過了。\n不對的話，把「歌詞時間」改成「照歌詞檔」，再用「整首移動」調整') +
-      '</div>';
+    html += '<div class="notice small">' + notice + helpTip(reason) + '</div>';
   }
   // 一段一段對齊：中間插了劇情、影片剪短 → 整段搬到歌手唱的地方（server\song_alignment.py）
   const moved = lyrics.moved_sections || [];
   if (moved.length > 0) {
     const parts = [];
     for (const section of moved) {
-      parts.push(formatTime(section.from) + ' 起的 ' + section.lines + ' 句 → ' + formatTime(section.to));
+      parts.push(t('{from} 起的 {count} 句 → {to}',
+        { from: formatTime(section.from), count: section.lines, to: formatTime(section.to) }));
     }
-    html += '<div class="notice small">有 ' + moved.length + ' 段歌詞搬到歌手唱的地方' +
-      helpTip('這支影片跟歌詞的版本不一樣（中間有劇情、或剪短了），程式照歌聲搬過去：\n' + parts.join('\n')) +
+    html += '<div class="notice small">' + t('有 {count} 段歌詞搬到歌手唱的地方', { count: moved.length }) +
+      helpTip(t('這支影片跟歌詞的版本不一樣（中間有劇情、或剪短了），程式照歌聲搬過去：\n') + parts.join('\n')) +
       '</div>';
   }
   const absent = lyrics.absent_lines || [];
   if (absent.length > 0) {
-    html += '<div class="notice small">影片沒唱的 ' + absent.length + ' 句不顯示' +
-      helpTip('這幾句在這支影片裡找不到有人唱：\n' + absent.join('\n')) +
+    html += '<div class="notice small">' + t('影片沒唱的 {count} 句不顯示', { count: absent.length }) +
+      helpTip(t('這幾句在這支影片裡找不到有人唱：\n') + absent.join('\n')) +
       '</div>';
   }
   for (const line of lyrics.lines) {
@@ -424,11 +427,11 @@ function secondsToLrcTime(seconds) {
 async function startTapSync() {
   const lines = getPlainLines();
   if (lines.length === 0) {
-    showToast('請先在上面貼上歌詞（每句一行）', 'error');
+    showToast(t('請先在上面貼上歌詞（每句一行）'), 'error');
     return;
   }
   const area = document.getElementById('tap-area');
-  area.innerHTML = '<p class="muted">載入音樂中…</p>';
+  area.innerHTML = '<p class="muted">' + t('載入音樂中…') + '</p>';
   picker.stopListen();   // 兩個不要同時播
 
   const context = getAudioContext();
@@ -456,15 +459,15 @@ async function startTapSync() {
   area.innerHTML =
     '<div class="tap-box">' +
     '  <div class="tap-time" id="tap-time">0:00</div>' +
-    '  <div class="tap-next muted small">下一句：</div>' +
+    '  <div class="tap-next muted small">' + t('下一句：') + '</div>' +
     '  <div class="tap-line" id="tap-line"></div>' +
     '  <div class="tap-after muted" id="tap-after"></div>' +
-    '  <button class="btn btn-primary btn-big" id="tap-button">這一句開始 <kbd>空白鍵</kbd></button>' +
+    '  <button class="btn btn-primary btn-big" id="tap-button">' + t('這一句開始') + ' <kbd>' + t('空白鍵') + '</kbd></button>' +
     '  <div class="button-row tap-tools">' +
-    '    <button class="btn btn-small" id="tap-undo" title="退回上一句（Backspace）">' + icon('undo') + ' 退回</button>' +
-    '    <button class="btn btn-small" id="tap-stop">' + icon('stop') + ' 停止</button>' +
-    '    <label class="control-slider" title="音量">' + icon('volume') +
-    '<input type="range" min="0" max="100" id="tap-volume" aria-label="音量"></label>' +
+    '    <button class="btn btn-small" id="tap-undo" title="' + t('退回上一句（Backspace）') + '">' + icon('undo') + ' ' + t('退回') + '</button>' +
+    '    <button class="btn btn-small" id="tap-stop">' + icon('stop') + ' ' + t('停止') + '</button>' +
+    '    <label class="control-slider" title="' + t('音量') + '">' + icon('volume') +
+    '<input type="range" min="0" max="100" id="tap-volume" aria-label="' + t('音量') + '"></label>' +
     '  </div>' +
     '</div>';
   const volume = document.getElementById('tap-volume');
@@ -495,7 +498,7 @@ function updateTapDisplay() {
     return;
   }
   const index = tapSync.times.length;
-  document.getElementById('tap-line').textContent = tapSync.lines[index] || '（全部完成）';
+  document.getElementById('tap-line').textContent = tapSync.lines[index] || t('（全部完成）');
   document.getElementById('tap-after').textContent = tapSync.lines[index + 1] || '';
 }
 
@@ -541,16 +544,16 @@ function finishTapSync(completed) {
   stopTapSync();
 
   const area = document.getElementById('tap-area');
-  area.innerHTML = '<button class="btn" id="tap-start">' + icon('refresh') + ' 重新來一次</button>';
+  area.innerHTML = '<button class="btn" id="tap-start">' + icon('refresh') + ' ' + t('重新來一次') + '</button>';
   document.getElementById('tap-start').addEventListener('click', startTapSync);
 
   if (tappedCount > 0) {
     document.getElementById('lrc-text').value = lrcLines.join('\n');
     if (completed) {
       saveLrc('點按同步');
-      showToast('同步完成，已儲存！', 'ok');
+      showToast(t('同步完成，已儲存！'), 'ok');
     } else {
-      showToast('已標記 ' + tappedCount + ' 句（還沒儲存，確認後按「儲存」）');
+      showToast(t('已標記 {count} 句（還沒儲存，確認後按「儲存」）', { count: tappedCount }));
     }
   }
 }

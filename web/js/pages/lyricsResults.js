@@ -3,6 +3,7 @@
 //   isRecommended  這一筆算不算「推薦」（有時間軸、長度差 15 秒以內）
 //   resultsHtml    做出清單的 HTML：每一筆整列都可以點（data-pick="第幾筆"），選到的左邊打勾
 
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, formatTime } from '../ui.js';
 
@@ -62,11 +63,11 @@ function lengthHtml(item, duration) {
   if (duration && item.duration) {
     const difference = Math.round(item.duration - duration);
     if (Math.abs(difference) <= SAME_LENGTH) {
-      html += ' <span class="ok-text" title="跟你的歌一樣長">' + icon('check') + '</span>';
+      html += ' <span class="ok-text" title="' + t('跟你的歌一樣長') + '">' + icon('check') + '</span>';
     } else if (difference > 0) {
-      html += ' <span class="warn-text">長 ' + difference + ' 秒</span>';
+      html += ' <span class="warn-text">' + t('長 {seconds} 秒', { seconds: difference }) + '</span>';
     } else {
-      html += ' <span class="warn-text">短 ' + (-difference) + ' 秒</span>';
+      html += ' <span class="warn-text">' + t('短 {seconds} 秒', { seconds: -difference }) + '</span>';
     }
   }
   return html;
@@ -84,14 +85,14 @@ export function checkProblem(check) {
     return '';
   }
   if (check.off) {
-    let word = '晚';
+    const seconds = Math.abs(check.diff).toFixed(1);
     if (check.diff < 0) {
-      word = '早';
+      return t('整首比大部分版本早 {seconds} 秒', { seconds: seconds });
     }
-    return '整首比大部分版本' + word + ' ' + Math.abs(check.diff).toFixed(1) + ' 秒';
+    return t('整首比大部分版本晚 {seconds} 秒', { seconds: seconds });
   }
   if (check.odd.length > 0) {
-    return '有 ' + check.odd.length + ' 句時間跟大部分版本不一樣';
+    return t('有 {count} 句時間跟大部分版本不一樣', { count: check.odd.length });
   }
   return '';
 }
@@ -103,7 +104,8 @@ export function checkDetail(check) {
   }
   const lines = [];
   for (const odd of check.odd.slice(0, 3)) {
-    lines.push('「' + odd.text + '」在 ' + formatTime(odd.time) + '，大部分版本在 ' + formatTime(odd.others));
+    lines.push(t('「{text}」在 {time}，大部分版本在 {others}',
+      { text: odd.text, time: formatTime(odd.time), others: formatTime(odd.others) }));
   }
   return lines.join('\n');
 }
@@ -112,7 +114,8 @@ export function checkDetail(check) {
 //   item.match：伺服器比對的結果 { shift, silent, silent_at, check }（「編輯歌詞」頁才有；沒有時間軸的是 null）
 //   silent：字幕跳出來時，原唱（AI 分出來的人聲）幾乎沒聲音的句數
 //   check：跟網路上其他版本比的結果（見 checkProblem）
-const NO_TIME_TAG = '<span class="tag tag-warn" title="這份歌詞沒有時間，唱歌時不會有字幕">只有文字</span>';
+const NO_TIME_TAG = '<span class="tag tag-warn" title="' + t('這份歌詞沒有時間，唱歌時不會有字幕') + '">' +
+  t('只有文字') + '</span>';
 
 function matchTag(item) {
   if (item.match === null || !item.synced) {
@@ -120,22 +123,22 @@ function matchTag(item) {
   }
   const problem = checkProblem(item.match.check);
   if (problem !== '') {
-    let tip = problem + '，換一份比較好';
+    let tip = t('{problem}，換一份比較好', { problem: problem });
     const detail = checkDetail(item.match.check);
     if (detail !== '') {
       tip += '\n' + detail;
     }
-    return '<span class="tag tag-warn" title="' + escapeHtml(tip) + '">' + icon('warn') + ' 可能不準</span>';
+    return '<span class="tag tag-warn" title="' + escapeHtml(tip) + '">' + icon('warn') + ' ' + t('可能不準') + '</span>';
   }
   if (item.match.silent <= FEW_SILENT) {
-    let tip = '字幕會準時出現';
+    let tip = t('字幕會準時出現');
     if (Math.abs(item.match.shift) >= 0.1) {
-      tip += '（程式會自己調 ' + Math.abs(item.match.shift).toFixed(1) + ' 秒）';
+      tip += t('（程式會自己調 {seconds} 秒）', { seconds: Math.abs(item.match.shift).toFixed(1) });
     }
-    return '<span class="tag tag-ok" title="' + tip + '">' + icon('check') + ' 時間準</span>';
+    return '<span class="tag tag-ok" title="' + tip + '">' + icon('check') + ' ' + t('時間準') + '</span>';
   }
-  const tip = '從 ' + formatTime(item.match.silent_at) + ' 開始，字幕出來的時候沒人在唱。換一份比較好';
-  return '<span class="tag tag-warn" title="' + tip + '">' + icon('warn') + ' 可能不準</span>';
+  const tip = t('從 {time} 開始，字幕出來的時候沒人在唱。換一份比較好', { time: formatTime(item.match.silent_at) });
+  return '<span class="tag tag-warn" title="' + tip + '">' + icon('warn') + ' ' + t('可能不準') + '</span>';
 }
 
 // 照「時間準不準」排（有比對結果才用）：
@@ -204,9 +207,9 @@ export function resultsHtml(results, duration, chosenIndex, canListen) {
     let recommend = '';
     if (i === 0) {
       if (hasMatch && item.match && item.match.silent <= FEW_SILENT && checkProblem(item.match.check) === '') {
-        recommend = '<span class="tag tag-star">' + icon('star') + ' 推薦</span>';
+        recommend = '<span class="tag tag-star">' + icon('star') + ' ' + t('推薦') + '</span>';
       } else if (!hasMatch && isRecommended(item, duration)) {
-        recommend = '<span class="tag tag-star">' + icon('star') + ' 推薦</span>';
+        recommend = '<span class="tag tag-star">' + icon('star') + ' ' + t('推薦') + '</span>';
       }
     }
 
@@ -229,7 +232,7 @@ export function resultsHtml(results, duration, chosenIndex, canListen) {
       actions += NO_TIME_TAG;
     }
     if (canListen && item.synced) {
-      actions += '<button type="button" class="btn btn-icon btn-listen" data-listen="' + i + '" title="試聽" aria-label="試聽">' +
+      actions += '<button type="button" class="btn btn-icon btn-listen" data-listen="' + i + '" title="' + t('試聽') + '" aria-label="' + t('試聽') + '">' +
         icon('play') + '</button>';
     }
 

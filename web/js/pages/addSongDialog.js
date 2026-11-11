@@ -8,6 +8,7 @@
 // 歌名、歌手空白的話，用選的那份歌詞上的補上（songNames.js）
 
 import * as api from '../api.js';
+import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, formatTime, helpTip, openDialog, showToast } from '../ui.js';
 import { LyricsPicker } from './lyricsPicker.js';
@@ -17,21 +18,21 @@ export function openAddSongDialog(systemInfo, onDone) {
   const canSeparate = !systemInfo || systemInfo.separator;
   const canYoutube = !systemInfo || systemInfo.youtube;
 
-  let youtubePanel = '<div class="notice">沒有安裝 yt-dlp' + helpTip('執行 setup.bat 安裝') + '</div>';
+  let youtubePanel = '<div class="notice">' + t('沒有安裝 yt-dlp') + helpTip(t('執行 setup.bat 安裝')) + '</div>';
   if (canYoutube) {
     youtubePanel =
       '<div class="youtube-row">' +
-      '  <input class="input" id="youtube-url" placeholder="貼上 YouTube 網址">' +
-      '  <button type="button" class="btn" id="youtube-read">讀取</button>' +
+      '  <input class="input" id="youtube-url" placeholder="' + t('貼上 YouTube 網址') + '">' +
+      '  <button type="button" class="btn" id="youtube-read">' + t('讀取') + '</button>' +
       '</div>' +
       '<div class="small muted" id="youtube-status">' +
-      '  會下載影片當 MV 背景' + helpTip('最高 1080p。請只下載你有權利使用的影片') +
+      '  ' + t('會下載影片當 MV 背景') + helpTip(t('最高 1080p。請只下載你有權利使用的影片')) +
       '</div>';
   }
-  let separateNote = helpTip('分出伴奏和原唱：評分更準，也可以開導唱');
+  let separateNote = helpTip(t('分出伴奏和原唱：評分更準，也可以開導唱'));
   let separateAttribute = 'checked';
   if (!canSeparate) {
-    separateNote = '<span class="muted small">（未安裝）</span>';
+    separateNote = '<span class="muted small">' + t('（未安裝）') + '</span>';
     separateAttribute = 'disabled';
   }
 
@@ -39,47 +40,47 @@ export function openAddSongDialog(systemInfo, onDone) {
     '<div class="add-layout">' +
     // ---- 左邊：歌曲 ----
     '  <section class="add-column">' +
-    '    <h4 class="column-title">' + icon('music') + ' 歌曲</h4>' +
+    '    <h4 class="column-title">' + icon('music') + ' ' + t('歌曲') + '</h4>' +
     '    <div class="tabs" role="tablist">' +
-    '      <button type="button" class="tab active" data-tab="file">' + icon('folder') + ' 電腦檔案</button>' +
+    '      <button type="button" class="tab active" data-tab="file">' + icon('folder') + ' ' + t('電腦檔案') + '</button>' +
     '      <button type="button" class="tab" data-tab="youtube">' + icon('video') + ' YouTube</button>' +
     '    </div>' +
     '    <div id="file-panel">' +
     '      <div class="drop-zone" id="drop-zone" tabindex="0" role="button">' +
     '        <div class="drop-icon">' + icon('upload') + '</div>' +
-    '        <div id="drop-text">拖進來，或<b>按這裡選</b></div>' +
-    '        <div class="muted small">mp3、m4a、flac、wav、ogg、mp4</div>' +
+    '        <div id="drop-text">' + t('拖進來，或<b>按這裡選</b>') + '</div>' +
+    '        <div class="muted small">' + t('mp3、m4a、flac、wav、ogg、mp4') + '</div>' +
     '        <input type="file" id="file-input" accept="audio/*,video/*" hidden>' +
     '      </div>' +
     '    </div>' +
     '    <div id="youtube-panel" class="hidden">' + youtubePanel + '</div>' +
     '    <div class="form-grid">' +
-    '      <label for="title-input">歌名</label>' +
-    '      <input class="input" id="title-input" placeholder="空白就自動讀">' +
-    '      <label for="artist-input">歌手</label>' +
-    '      <input class="input" id="artist-input" placeholder="可以空白">' +
-    '      <label for="separate-check">AI 去人聲' + separateNote + '</label>' +
+    '      <label for="title-input">' + t('歌名') + '</label>' +
+    '      <input class="input" id="title-input" placeholder="' + t('空白就自動讀') + '">' +
+    '      <label for="artist-input">' + t('歌手') + '</label>' +
+    '      <input class="input" id="artist-input" placeholder="' + t('可以空白') + '">' +
+    '      <label for="separate-check">' + t('AI 去人聲') + separateNote + '</label>' +
     '      <div><input type="checkbox" class="switch" id="separate-check" ' + separateAttribute + '></div>' +
     '    </div>' +
     '  </section>' +
     // ---- 右邊：歌詞 ----
     '  <section class="add-column">' +
-    '    <h4 class="column-title">' + icon('lyrics') + ' 歌詞' +
-    helpTip('從 LRCLIB 網站搜尋（只送出歌名、歌手）') + '</h4>' +
+    '    <h4 class="column-title">' + icon('lyrics') + ' ' + t('歌詞') +
+    helpTip(t('從 LRCLIB 網站搜尋（只送出歌名、歌手）')) + '</h4>' +
     '    <div class="lyrics-picker" id="lyrics-picker"></div>' +
     '    <details class="own-lyrics">' +
-    '      <summary>貼上自己的歌詞' + helpTip('LRC 格式。貼了就用這份，不用上面搜到的') + '</summary>' +
-    '      <textarea class="input" id="lrc-input" rows="6" placeholder="[00:12.34]第一句歌詞&#10;[00:18.00]第二句歌詞"></textarea>' +
+    '      <summary>' + t('貼上自己的歌詞') + helpTip(t('LRC 格式。貼了就用這份，不用上面搜到的')) + '</summary>' +
+    '      <textarea class="input" id="lrc-input" rows="6" placeholder="' + t('[00:12.34]第一句歌詞&#10;[00:18.00]第二句歌詞') + '"></textarea>' +
     '    </details>' +
     '  </section>' +
     '</div>' +
     '<div class="progress hidden" id="upload-progress"><div class="progress-fill" id="upload-fill"></div></div>' +
     '<div class="dialog-actions">' +
-    '  <button type="button" class="btn" id="cancel-button">取消</button>' +
-    '  <button type="button" class="btn btn-primary" id="upload-button" disabled>' + icon('plus') + ' 加入</button>' +
+    '  <button type="button" class="btn" id="cancel-button">' + t('取消') + '</button>' +
+    '  <button type="button" class="btn btn-primary" id="upload-button" disabled>' + icon('plus') + ' ' + t('加入') + '</button>' +
     '</div>';
 
-  const dialog = openDialog('加入歌曲', html, onDialogClose, 'wide');
+  const dialog = openDialog(t('加入歌曲'), html, onDialogClose, 'wide');
   const box = dialog.box;
   const uploadButton = box.querySelector('#upload-button');
 
@@ -155,7 +156,7 @@ export function openAddSongDialog(systemInfo, onDone) {
   // ---------- 切換分頁 ----------
 
   function updateButton() {
-    uploadButton.innerHTML = icon('plus') + ' 加入';
+    uploadButton.innerHTML = icon('plus') + ' ' + t('加入');
     if (mode === 'file') {
       uploadButton.disabled = chosenFile === null;
     } else {
@@ -255,7 +256,7 @@ export function openAddSongDialog(systemInfo, onDone) {
   async function readYoutubeInfo() {
     const url = box.querySelector('#youtube-url').value.trim();
     const status = box.querySelector('#youtube-status');
-    status.textContent = '讀取中…';
+    status.textContent = t('讀取中…');
     youtubeInfo = await api.getYoutubeInfo(url);
 
     // 歌名、歌手還沒填的話，幫忙填上
@@ -331,7 +332,7 @@ export function openAddSongDialog(systemInfo, onDone) {
     form.append('lrc', lyrics.lrc);
     form.append('lyrics_source', lyrics.source);
 
-    uploadButton.textContent = '上傳中…';
+    uploadButton.textContent = t('上傳中…');
     box.querySelector('#upload-progress').classList.remove('hidden');
     return await api.uploadSong(form, function (ratio) {
       box.querySelector('#upload-fill').style.width = Math.round(ratio * 100) + '%';
@@ -341,10 +342,10 @@ export function openAddSongDialog(systemInfo, onDone) {
   async function submitYoutube() {
     // 還沒按「讀取」的話，先讀取標題和歌手
     if (youtubeInfo === null) {
-      uploadButton.textContent = '讀取中…';
+      uploadButton.textContent = t('讀取中…');
       await readYoutubeInfo();
     }
-    uploadButton.textContent = '加入中…';
+    uploadButton.textContent = t('加入中…');
     const lyrics = lyricsToSend();
     const names = namesToSend(lyrics);
     return await api.addYoutubeSong({
@@ -365,13 +366,13 @@ export function openAddSongDialog(systemInfo, onDone) {
 
   // 還沒搜尋歌詞就按了加入：先搜尋、列出來給你挑，這次先不加入
   async function showLyricsChoiceFirst() {
-    uploadButton.textContent = '找歌詞中…';
+    uploadButton.textContent = t('找歌詞中…');
     if (mode === 'youtube' && youtubeInfo === null) {
       await readYoutubeInfo();   // 讀完會自動開始搜尋歌詞
     }
     await picker.finishSearch();
     box.querySelector('#lyrics-picker').scrollIntoView({ block: 'nearest' });
-    showToast('先看一下右邊的歌詞，再按一次「加入」', 'ok');
+    showToast(t('先看一下右邊的歌詞，再按一次「加入」'), 'ok');
   }
 
   uploadButton.addEventListener('click', async function () {
@@ -388,10 +389,10 @@ export function openAddSongDialog(systemInfo, onDone) {
           return;
         }
         song = await submitFile();
-        showToast('「' + song.title + '」已加入，正在背景處理…', 'ok');
+        showToast(t('「{title}」已加入，正在背景處理…', { title: song.title }), 'ok');
       } else {
         song = await submitYoutube();
-        showToast('「' + song.title + '」已加入，正在背景下載和處理…', 'ok');
+        showToast(t('「{title}」已加入，正在背景下載和處理…', { title: song.title }), 'ok');
       }
       if (onDone) {
         onDone(song);

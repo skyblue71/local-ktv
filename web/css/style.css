@@ -1973,6 +1973,22 @@ ruby rt {
   margin-top: 20px;
 }
 
+/* 設定視窗下面那一排最左邊的語言選單（按鈕還是靠右） */
+.dialog-actions .language-pick {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  align-self: center;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.dialog-actions .language-select {
+  width: auto;
+  margin-right: auto;
+}
+
 .dialog-actions .btn {
   min-width: 88px;
 }
@@ -2765,8 +2781,9 @@ input.chart-scroll::-moz-range-thumb {
   height: 14px;
 }
 
+/* 左邊那一欄跟著最長的名稱變寬（英文的名稱比較長），名稱才不會斷成兩行 */
 .settings-section .form-grid {
-  grid-template-columns: 9em minmax(0, 1fr);
+  grid-template-columns: minmax(9em, max-content) minmax(0, 1fr);
   margin: 10px 0 12px;
 }
 

@@ -7,6 +7,7 @@
 //   完成度 10%  有唱到的音符比例
 // 最後再加上「技巧加分」（滑音、轉音、尾音下滑，最多 +3 分），總分最高 100。
 
+import { t } from '../i18n.js';
 import { average, clamp, movingAverage, standardDeviation } from './scoreMath.js';
 import { countTechniques, techniqueBonus } from './techniques.js';
 
@@ -196,9 +197,9 @@ export function calculateFinalScore(scorer) {
 // 表現力的建議：看是「顫音」還是「音量起伏」比較不夠
 function expressionTip(result) {
   if (result.vibratoScore < result.dynamicsScore) {
-    return '試著在長音的尾巴加一點顫音，表現力會加分。';
+    return t('試著在長音的尾巴加一點顫音，表現力會加分。');
   }
-  return '試著讓音量有強有弱（副歌大聲、主歌輕柔），表現力會加分。';
+  return t('試著讓音量有強有弱（副歌大聲、主歌輕柔），表現力會加分。');
 }
 
 function getRank(total) {
@@ -214,26 +215,26 @@ function getRank(total) {
 function makeComment(result) {
   let first = '';
   if (result.total >= 95) {
-    first = '完美！簡直就是原唱本人！';
+    first = t('完美！簡直就是原唱本人！');
   } else if (result.total >= 90) {
-    first = '太厲害了！音準非常穩。';
+    first = t('太厲害了！音準非常穩。');
   } else if (result.total >= 80) {
-    first = '唱得很好！';
+    first = t('唱得很好！');
   } else if (result.total >= 70) {
-    first = '不錯哦，再多練幾次會更好。';
+    first = t('不錯哦，再多練幾次會更好。');
   } else if (result.total >= 60) {
-    first = '及格了！';
+    first = t('及格了！');
   } else {
-    first = '加油！先多聽幾次原唱熟悉旋律吧。';
+    first = t('加油！先多聽幾次原唱熟悉旋律吧。');
   }
 
   // 找出最弱的項目給建議
   const items = [
-    { value: result.pitch, tip: '音準還能更好：可以把「導唱」音量調大，跟著原唱練習。' },
-    { value: result.rhythm, tip: '開口的時間有點偏：如果一直被判慢，可以在設定裡調大「延遲補償」。' },
-    { value: result.stability, tip: '長音試著穩住，不要飄。' },
+    { value: result.pitch, tip: t('音準還能更好：可以把「導唱」音量調大，跟著原唱練習。') },
+    { value: result.rhythm, tip: t('開口的時間有點偏：如果一直被判慢，可以在設定裡調大「延遲補償」。') },
+    { value: result.stability, tip: t('長音試著穩住，不要飄。') },
     { value: result.expression, tip: expressionTip(result) },
-    { value: result.completion, tip: '有些地方沒唱到，試著每一句都開口唱。' },
+    { value: result.completion, tip: t('有些地方沒唱到，試著每一句都開口唱。') },
   ];
   let weakest = items[0];
   for (const item of items) {

@@ -3,6 +3,7 @@
 //   在頁面上按「/」可以直接打字搜尋
 
 import * as api from '../api.js';
+import { t, tServer } from '../i18n.js';
 import { icon } from '../icons.js';
 import { escapeHtml, formatTime, showToast } from '../ui.js';
 import { openAddSongDialog } from './addSongDialog.js';
@@ -11,20 +12,20 @@ const VIEW_KEY = 'karaoke-library-view';   // 排序、篩選記在瀏覽器的�
 
 // 排序：value → 名字
 const SORTS = [
-  ['new', '最近加入'],
-  ['title', '歌名'],
-  ['artist', '歌手'],
-  ['score', '最高分'],
-  ['length', '長度'],
+  ['new', t('最近加入')],
+  ['title', t('歌名')],
+  ['artist', t('歌手')],
+  ['score', t('最高分')],
+  ['length', t('長度')],
 ];
 
 // 篩選：value → 名字
 const FILTERS = [
-  ['all', '全部'],
-  ['unsung', '還沒唱過'],
-  ['sung', '唱過的'],
-  ['nolyrics', '缺字幕'],
-  ['mv', '有 MV'],
+  ['all', t('全部')],
+  ['unsung', t('還沒唱過')],
+  ['sung', t('唱過的')],
+  ['nolyrics', t('缺字幕')],
+  ['mv', t('有 MV')],
 ];
 
 let refreshTimer = null;
@@ -73,20 +74,20 @@ export async function enter(app) {
     '<div class="page">' +
     '  <div class="page-header">' +
     '    <div class="title-line">' +
-    '      <h1>歌曲庫</h1>' +
+    '      <h1>' + t('歌曲庫') + '</h1>' +
     '      <span class="muted" id="song-count"></span>' +
     '    </div>' +
-    '    <button id="add-button" class="btn btn-primary">' + icon('plus') + ' 加入歌曲</button>' +
+    '    <button id="add-button" class="btn btn-primary">' + icon('plus') + ' ' + t('加入歌曲') + '</button>' +
     '  </div>' +
     '  <div class="library-toolbar">' +
     '    <label class="search-box">' + icon('search') +
-    '      <input id="search-box" class="input" type="search" placeholder="搜尋歌名、歌手" title="按 / 也可以直接打字搜尋">' +
+    '      <input id="search-box" class="input" type="search" placeholder="' + t('搜尋歌名、歌手') + '" title="' + t('按 / 也可以直接打字搜尋') + '">' +
     '    </label>' +
-    '    <label class="select-box" title="篩選">' + icon('filter') +
-    '      <select id="filter-select" class="input" aria-label="篩選">' + optionsHtml(FILTERS, view.filter) + '</select>' +
+    '    <label class="select-box" title="' + t('篩選') + '">' + icon('filter') +
+    '      <select id="filter-select" class="input" aria-label="' + t('篩選') + '">' + optionsHtml(FILTERS, view.filter) + '</select>' +
     '    </label>' +
-    '    <label class="select-box" title="排序">' + icon('sort') +
-    '      <select id="sort-select" class="input" aria-label="排序">' + optionsHtml(SORTS, view.sort) + '</select>' +
+    '    <label class="select-box" title="' + t('排序') + '">' + icon('sort') +
+    '      <select id="sort-select" class="input" aria-label="' + t('排序') + '">' + optionsHtml(SORTS, view.sort) + '</select>' +
     '    </label>' +
     '  </div>' +
     '  <div id="song-grid" class="song-grid"></div>' +
@@ -143,17 +144,17 @@ async function loadSystemInfo() {
       return;
     }
     if (systemInfo.separator && systemInfo.gpu) {
-      line.textContent = 'AI 去人聲用：' + systemInfo.gpu;
+      line.textContent = t('AI 去人聲用：{device}', { device: systemInfo.gpu });
     } else if (systemInfo.separator) {
-      line.textContent = 'AI 去人聲用：CPU（比較慢）';
+      line.textContent = t('AI 去人聲用：CPU（比較慢）');
     } else {
-      line.textContent = 'AI 去人聲：未安裝（會直接用原曲當伴奏）';
+      line.textContent = t('AI 去人聲：未安裝（會直接用原曲當伴奏）');
     }
   } catch (error) {
     if (line) {
       line.textContent = '';
     }
-    showToast('連不到伺服器：' + error.message, 'error');
+    showToast(t('連不到伺服器：{message}', { message: error.message }), 'error');
   }
 }
 
@@ -165,7 +166,7 @@ async function loadSongs() {
   try {
     allSongs = await api.getSongs();
   } catch (error) {
-    showToast('讀取歌曲失敗：' + error.message, 'error');
+    showToast(t('讀取歌曲失敗：{message}', { message: error.message }), 'error');
     return;
   }
   if (!document.getElementById('song-grid')) {
@@ -258,16 +259,16 @@ function renderSongs() {
     html =
       '<div class="empty-state">' +
       '  <div class="empty-icon">' + icon('music') + '</div>' +
-      '  <p>還沒有歌曲，按「加入歌曲」開始</p>' +
+      '  <p>' + t('還沒有歌曲，按「加入歌曲」開始') + '</p>' +
       '</div>';
   } else if (shown.length === 0) {
-    html = '<div class="empty-state"><p>沒有符合的歌曲</p></div>';
+    html = '<div class="empty-state"><p>' + t('沒有符合的歌曲') + '</p></div>';
   }
   grid.innerHTML = html;
 
-  let count = allSongs.length + ' 首';
+  let count = t('{count} 首', { count: allSongs.length });
   if (shown.length !== allSongs.length) {
-    count = shown.length + ' / ' + allSongs.length + ' 首';
+    count = t('{shown} / {count} 首', { shown: shown.length, count: allSongs.length });
   }
   document.getElementById('song-count').textContent = count;
 }
@@ -283,33 +284,33 @@ function songCardHtml(song) {
   if (song.status === 'ready') {
     const parts = [];
     if (song.has_lyrics && song.lyrics_synced) {
-      parts.push('<span class="feature" title="有字幕">' + icon('lyrics') + '</span>');
+      parts.push('<span class="feature" title="' + t('有字幕') + '">' + icon('lyrics') + '</span>');
     } else if (song.has_lyrics) {
-      parts.push('<span class="tag tag-warn" title="歌詞沒有時間，到「編輯歌詞」用點按同步">歌詞沒時間</span>');
+      parts.push('<span class="tag tag-warn" title="' + t('歌詞沒有時間，到「編輯歌詞」用點按同步') + '">' + t('歌詞沒時間') + '</span>');
     } else {
-      parts.push('<span class="tag tag-warn">沒歌詞</span>');
+      parts.push('<span class="tag tag-warn">' + t('沒歌詞') + '</span>');
     }
     if (song.has_vocals) {
-      parts.push('<span class="feature" title="已去人聲（可以開導唱）">' + icon('vocals') + '</span>');
+      parts.push('<span class="feature" title="' + t('已去人聲（可以開導唱）') + '">' + icon('vocals') + '</span>');
     }
     if (song.has_video) {
-      parts.push('<span class="feature" title="有 MV">' + icon('video') + '</span>');
+      parts.push('<span class="feature" title="' + t('有 MV') + '">' + icon('video') + '</span>');
     }
     status = '<div class="card-features">' + parts.join('') + '</div>';
   } else if (song.status === 'error') {
-    status = '<div class="card-features"><span class="tag tag-error">處理失敗</span></div>';
+    status = '<div class="card-features"><span class="tag tag-error">' + t('處理失敗') + '</span></div>';
   } else {
     status =
-      '<div class="progress-text">' + escapeHtml(song.stage) + '</div>' +
+      '<div class="progress-text">' + escapeHtml(tServer(song.stage)) + '</div>' +
       '<div class="progress"><div class="progress-fill" style="width:' + song.progress + '%"></div></div>';
   }
 
   let best = '';
   if (song.best_score !== null && song.best_score !== undefined) {
-    best = '<div class="best-score" title="最高分">' + Number(song.best_score).toFixed(1) + '</div>';
+    best = '<div class="best-score" title="' + t('最高分') + '">' + Number(song.best_score).toFixed(1) + '</div>';
   }
 
-  let meta = escapeHtml(song.artist || '未知歌手');
+  let meta = escapeHtml(song.artist || t('未知歌手'));
   if (song.duration) {
     meta += ' · ' + formatTime(song.duration);
   }

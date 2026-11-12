@@ -14,7 +14,8 @@
   6. 更新：被換掉的舊檔案先備份到 data\\update_backup\\時間\\，再放上新的
   7. requirements.txt 有變：用 pip 安裝套件（只裝在這個程式的 .venv 裡；還沒安裝環境就不裝，留給 start.bat）
 不會動的：data（歌、分數）、.venv、最新版裡沒有的檔案。
-這個資料夾如果是 Git 管理的（有 .git），不更新，請用 Git。
+這個資料夾如果是 Git 管理的（有 .git）：不動檔案（換掉檔案的話，之後用 Git 更新會打架）。
+  GitHub 上有這個資料夾還沒抓過的新版，就提醒一句「請執行 git pull」（remind_git）。
 只用 Python 內建的功能，所以還沒安裝環境、只有 update.bat 一個檔案的時候也能跑。
 畫面上的訊息每一句都有英文和中文。
 """
@@ -249,13 +250,49 @@ def apply_update(new_folder, changed):
     return True
 
 
+def known_versions():
+    """
+    這個 Git 資料夾認得的版本編號：現在用的版本、每個分支、上次從 GitHub 抓回來的。
+    直接讀 .git 裡記編號的小檔案，不用呼叫 git（電腦裡不一定有 git 指令）。讀不到就是空的
+    """
+    git_folder = os.path.join(PROJECT, ".git")
+    paths = []
+    for name in ["HEAD", "ORIG_HEAD", "FETCH_HEAD", "packed-refs"]:
+        paths.append(os.path.join(git_folder, name))
+    for folder, _, names in os.walk(os.path.join(git_folder, "refs")):
+        for name in names:
+            paths.append(os.path.join(folder, name))
+    found = set()
+    for path in paths:
+        try:
+            with open(path, encoding="ascii", errors="ignore") as file:
+                found.update(re.findall(r"[0-9a-f]{40}", file.read()))
+        except OSError:
+            pass
+    return found
+
+
+def remind_git(from_start):
+    """
+    這個資料夾是 Git 管理的：不動檔案，只提醒。回傳結束代碼
+    GitHub 上最新的版本，這個資料夾不認得（還沒抓過）→ 提醒一句「請執行 git pull」。
+    認得的話不提醒：已經是最新版，或這裡有自己還沒上傳的修改
+    """
+    version = latest_version()
+    known = known_versions()
+    if version != "" and len(known) > 0 and version not in known:
+        say("A newer version is on GitHub. To update, run:  git pull",
+            "GitHub 上有新版。要更新請執行：  git pull")
+    elif not from_start:
+        say("This folder is managed by Git. Please update it with Git.",
+            "這個資料夾是 Git 管理的，請用 Git 更新。")
+    return 0
+
+
 def main(from_start):
     """from_start：是不是 start.bat 啟動時叫的。回傳結束代碼"""
     if os.path.exists(os.path.join(PROJECT, ".git")):
-        if not from_start:
-            say("This folder is managed by Git. Please update it with Git.",
-                "這個資料夾是 Git 管理的，請用 Git 更新。")
-        return 0
+        return remind_git(from_start)
 
     version = latest_version()
     if from_start:

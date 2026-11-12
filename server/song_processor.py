@@ -45,7 +45,7 @@ def make_lyrics(song_id, lrc_text, use_offset=True):
         emission = syllable_model.load_emission(song_store.song_dir(song_id))
     lyrics = build_lyrics(lrc_text, notes, meta.get("duration", 0), offset_ms,
                           meta.get("lyrics_auto_align", True), pitch.get("heard"), pitch.get("hop", 0.0),
-                          emission, pitch.get("loudness"))
+                          emission, pitch.get("loudness"), meta.get("lyrics_show_absent", False))
     # 你在修譜頁自己調過的字：照你的時間（word_store.py）
     word_store.apply_words(lyrics, word_store.get_words(song_id))
     # 每一段原唱是唱歌還是說話（「自動找劇情」用這份）

@@ -18,10 +18,15 @@
 3. 照歌聲修正（每個字都用同一套規則，fit_to_runs）：
    「一段歌聲」= 瀏覽器的耳朵聽得到、連在一起沒停的音符（音高分析已經把很短的停頓接起來了，pitch_analyzer 的 BRIDGE_GAP）
    - 開始：AI 有把握的字，照 AI 聽到的時間（子音開始的地方）
+           一句的第一個字例外：落在一個「歌手換氣後才開口」的音的中間 → 從歌手出聲的地方開始（opening_start）
            沒把握的（或猜的）：落在一個音的中間 → 從這個音開始的地方開始；落在沒聲音的地方 → 從下一段歌聲開始
            一句的第一個字落在一個音的中間：這個音如果是從上一句連著唱過來的（可能是上一句拉長的尾音），不往前搶，
            從歌手重新開口的地方或歌詞檔的時間開始（first_word_start）
+           沒把握的字對到一個音的開頭之後：歌手是停下來之後才出聲、音符之前就有聲音的話（開口那一小段音高不穩，
+           寫音符的 AI 沒寫音符），提早到出聲的地方（voice_start）
    - 結束：唱到下一個字開始前，最後一個音唱完的時候
+           這個字一個音都沒有（寫音符的 AI 沒寫，例如唱得很輕、音高不穩）但聽字的 AI 有聽到它：
+           唱到下一個字開始前，瀏覽器的耳朵最後還聽得到聲音的地方（last_voice）
            一句最後一個字：唱到它那一段歌聲（和 AI 有把握的最後一個字母那一段）唱完；
            後面斷開的歌聲不算這個字（一個字拉長是連著唱的；斷開又沒歌詞的是哼唱、即興）
            歌詞檔在這句後面有空白行（結束記號：歌手唱到這裡停）：沒把握的部分（猜的結束、拉長）只算到空白行，
@@ -272,12 +277,12 @@ def last_word_end(item, start, next_start, runs, unsure_limit):
     return end
 
 
-def first_word_start(notes, runs, note, time, previous, next_time):
+def first_word_start(notes, runs, note, time, previous, next_time, voice_onset=None, line_time=None):
     """
     一句的第一個字（AI 沒把握的）落在 note 這個音的中間：要從哪裡開始？
     time：歌詞檔的時間（或 AI 沒把握的位置）；previous：上一個字開始的時間；next_time：下一個字的時間
-    1. 這段歌聲是歌手換氣之後才開口的（上一個字不在這一段裡）：這個音就是這個字的，從音的開頭開始
-       （歌詞檔的時間晚了一點而已）
+    1. 這段歌聲是歌手換氣之後才開口的（上一個字不在這一段裡）：這個音就是這個字的，從歌手出聲的地方開始
+       （opening_start；歌詞檔的時間晚了一點而已）
     2. 這段歌聲是從上一句連著唱過來的（中間沒停）：這個音可能是上一句拉長的尾音，不往前搶。
        - 後面（下一個字之前）歌手停下來又重新開口，而且那裡離歌詞檔的時間比這個音的開頭近：從重新開口的地方開始
        - 不然照歌詞檔的時間
@@ -288,11 +293,88 @@ def first_word_start(notes, runs, note, time, previous, next_time):
     run = piece_at(runs, time)
     from_previous_line = run is not None and run[0] <= previous
     if not from_previous_line:
+        opening = opening_start(notes, runs, time, previous, voice_onset, line_time)
+        if opening is not None:
+            return opening
         return note[0]
     reopen = next_piece_after(runs, time)
     if reopen is not None and reopen[0] < next_time and reopen[0] - time < time - note[0]:
         return reopen[0]
     return time
+
+
+def opening_start(notes, runs, time, previous, voice_onset, line_time):
+    """
+    一句的第一個字在 time 開始。如果 time 落在一個音的中間，而這段歌聲是歌手換氣之後才開口的
+    （上一個字不在這一段裡）：這段聲音只可能是這個字，從歌手出聲的地方開始。
+    回傳開始的秒數（不符合就回傳 None）
+      出聲的地方 = 這個音的開頭，再往前到人聲開始變大聲的地方（voice_onset），
+      但最多只往前到歌詞檔給這一句的時間 line_time：歌詞檔說這句還沒開始的話，前面的聲音是和聲、哼唱，不是這個字
+      （不設這個界線，有和聲的歌會一路往前找，實測有句子被提早 1～3 秒）
+      沒有音量資料、或歌詞檔的時間比這個音的開頭還晚：就是音的開頭
+    （AI 聽拉長的母音常常標得比開口晚：一句開頭的「I——」0:34.8 開口、拉到 0:36，AI 標在 0:35.68，
+      寫音符的 AI 從 0:35.05 才有把握，歌詞檔寫 0:34.70。前面那一段有歌聲、沒有字，也就沒有評分條。
+      這條沒辦法拿 AI 有把握的字當答案來量（要改的就是 AI 標的時間），是照道理訂的）
+    """
+    run = piece_at(runs, time)
+    note = piece_at(notes, time)
+    if run is None or note is None:
+        return None
+    if run[0] <= previous + TINY or note[0] <= previous + TINY:
+        return None   # 上一個字也在這段歌聲裡：不是換氣後才開口的
+    if voice_onset is None or line_time is None or line_time >= note[0]:
+        return note[0]
+    return voice_onset(note[0], max(previous, line_time))
+
+
+def make_voice_onset(loudness, hop, pieces):
+    """
+    回傳 voice_onset(音的開頭, 最早可以到哪裡, need_pause)：
+    從這個音的開頭往前，人聲一直不是小聲雜音的那一段，是從幾秒開始的。
+    小聲雜音 = 比整首的歌聲小「清掉小聲雜音」的預設 dB 以上（跟 make_quiet_check 同一條線）。
+    need_pause=True：一路找到「最早可以到哪裡」人聲都沒停過，就不算「停下來之後才出聲」，回傳音的開頭
+    沒有音量資料就回傳 None
+    """
+    if not loudness or not hop or len(pieces) == 0:
+        return None
+    singing = median_db(loudness, hop, pieces)
+    if singing is None:
+        return None
+    limit = singing - game_bars.DEFAULT_QUIET_DB
+
+    def voice_onset(note_start, earliest, need_pause=False):
+        index = min(len(loudness), int(round(note_start / hop)))
+        first = max(0, int(round(earliest / hop)) + 1)
+        while index - 1 >= first and loudness[index - 1] >= limit:
+            index -= 1
+        if need_pause and index - 1 < first:
+            return note_start
+        return min(note_start, index * hop)
+    return voice_onset
+
+
+def voice_start(notes, note_start, earliest, voice_onset):
+    """
+    一個（AI 沒把握的）字對到 note_start 這個音的開頭。歌手其實是從幾秒開始出聲的？回傳那個秒數
+    寫音符的 AI 只在音高穩定的地方寫音符，歌手剛開口的那一小段（子音、滑上去、抖一下）常常沒有音符；
+    字從音符才開始的話，前面那一小段有歌聲、沒有字，也就沒有評分條。
+    出聲的地方 = 從這個音的開頭往前，人聲一直不是小聲雜音的那一段的開頭（voice_onset）。
+    往前找只找到 earliest（前一個字還在唱的時候）和「前面最後一個音唱完」為止，那之前是別的字的；
+    找到那裡人聲都沒停過，就分不出這個字從哪裡開始，照舊用音的開頭。
+    沒有音量資料也是音的開頭
+    （拿 AI 很有把握、落在沒聲音的地方、後面接著一段歌聲的 801 個字當答案：
+      音符的開頭 → 差 0.1 秒內 31%、0.25 秒內 84%，晚超過 0.1 秒的 69%；
+      出聲的地方 → 67%、97%，晚的 23%、早的 11%。
+      其他試過的找法：瀏覽器的耳朵聽到的開頭 42%、AI 音高線的開頭 51%。
+      整套一起量：假裝 AI 對每個字都沒把握再算一次，跟它真的有把握的 7696 個字比，
+      有變的 651 個字差 0.1 秒內 28% → 70%、0.25 秒內 84% → 96%，變準 587 個、變不準 61 個（最多差 0.30 秒））
+    """
+    if voice_onset is None:
+        return note_start
+    before = last_piece_before(notes, note_start)
+    if before is not None:
+        earliest = max(earliest, before[1])
+    return voice_onset(note_start, earliest, True)
 
 
 def keep_after_previous(start, item, previous_item):
@@ -308,14 +390,34 @@ def keep_after_previous(start, item, previous_item):
     return max(item["start"], previous_item["last_point"])
 
 
-def fit_to_runs(items, runs, notes, limit_end, is_quiet=None):
+def make_last_voice(heard, hop):
+    """
+    回傳 last_voice(開始, 最晚)：這段時間裡，瀏覽器的耳朵最後還聽得到原唱的地方是幾秒（那一格的結尾，不超過「最晚」）；
+    完全聽不到回傳 None。沒有 heard 資料就回傳 None
+    """
+    if not heard or not hop:
+        return None
+
+    def last_voice(start, latest):
+        first = max(0, int(round(start / hop)))
+        last = min(len(heard), int(round(latest / hop)))
+        for index in range(last - 1, first - 1, -1):
+            if heard[index] != 0:
+                return min(latest, (index + 1) * hop)
+        return None
+    return last_voice
+
+
+def fit_to_runs(items, runs, notes, limit_end, is_quiet=None, voice_onset=None, last_voice=None):
     """
     照歌聲修正每個字的開始、結束（規則見最上面第 3 點）。
     items：照順序的字 [{"token", "start", "sure"（AI 對開始的地方有把握）, "last_point"（AI 有把握的最後一個字母／猜的結束）,
                        "end_hint"（沒聲音時用的結束）, "last"（一句最後一個字）, "mark"（後面空白行的時間）,
-                       "first"（一句第一個字）}]
+                       "first"（一句第一個字）, "line_time"（歌詞檔給這一句的時間，第一個字才有）}]
     notes：聽得到的每一個音（heard_notes）；limit_end：最後一個字最多到哪裡
     is_quiet(開始, 結束)：這段聲音是不是小聲雜音（沒有音量資料就是 None，空白行不切）
+    voice_onset(音的開頭, 最早到哪裡)：歌手從幾秒開始出聲（make_voice_onset；沒有音量資料就是 None）
+    last_voice(開始, 最晚)：這段時間裡瀏覽器的耳朵最後還聽得到原唱的地方（make_last_voice；沒有資料就是 None）
     """
     # 第 1 輪：開始
     previous = -1e9
@@ -326,6 +428,7 @@ def fit_to_runs(items, runs, notes, limit_end, is_quiet=None):
             next_candidate = items[index + 1]["start"]
         else:
             next_candidate = limit_end
+        note_start = None   # 這個字對到哪一個音的開頭（沒有就是 None）
         if not item["sure"]:
             if piece_at(runs, start) is not None:
                 # 落在一個音的中間：從這個音開始的地方開始（前一個字不在這個音裡開始的話）
@@ -333,9 +436,11 @@ def fit_to_runs(items, runs, notes, limit_end, is_quiet=None):
                 note = piece_at(notes, start)
                 if note is not None and note[0] > previous + TINY:
                     if item.get("first"):
-                        start = first_word_start(notes, runs, note, start, previous, next_candidate)
+                        start = first_word_start(notes, runs, note, start, previous, next_candidate, voice_onset,
+                                                 item.get("line_time"))
                     else:
                         start = note[0]
+                        note_start = start
             else:
                 # 落在沒聲音的地方：從下一段歌聲開始（下一個字開始前的話）；
                 # 後面沒有歌聲了：AI 沒把握的位置不能信，回到前面最後一個音開始的地方
@@ -343,16 +448,38 @@ def fit_to_runs(items, runs, notes, limit_end, is_quiet=None):
                 later = next_piece_after(runs, start)
                 if later is not None and later[0] < next_candidate:
                     start = later[0]
+                    note_start = start
                 elif not item.get("first"):
                     # 只在同一句裡往前找：一句的第一個字是另外開口唱的，不能搶上一句的音
                     earlier = last_piece_before(notes, start)
                     if earlier is not None and earlier[0] > previous + TINY:
                         start = earlier[0]
+                        note_start = start
             if index > 0:
                 start = keep_after_previous(start, item, items[index - 1])
+        elif item.get("first"):
+            # AI 有把握的第一個字：換氣後才開口的那段聲音都是它的，從歌手出聲的地方開始
+            opening = opening_start(notes, runs, start, previous, voice_onset, item.get("line_time"))
+            if opening is not None:
+                start = min(start, opening)
         start = max(start, previous)
         item["final_start"] = start
+        item["at_note_start"] = note_start is not None and start == note_start
         previous = start
+
+    # 第 1 輪之後：對到一個音開頭的字，歌手是停下來之後才出聲的話，提早到出聲的地方（voice_start）
+    # （上面全部算完才做：上面的規則要看「前一個字是不是從這個音開始的」，先提早的話會看錯）
+    for index in range(len(items)):
+        item = items[index]
+        if not item["at_note_start"]:
+            continue
+        earliest = -1e9
+        if index > 0:
+            # 前一個字開始、和它 AI 有把握的最後一個字母之前，前一個字還在唱
+            earliest = items[index - 1]["final_start"]
+            if items[index - 1]["heard"]:
+                earliest = max(earliest, items[index - 1]["last_point"])
+        item["final_start"] = voice_start(notes, item["final_start"], earliest, voice_onset)
 
     # 第 2 輪：結束
     for index in range(len(items)):
@@ -383,6 +510,13 @@ def fit_to_runs(items, runs, notes, limit_end, is_quiet=None):
                 end = min(run[1], next_start)
         if end is None:
             end = min(max(item["end_hint"], start), next_start)   # 沒有聽得到的音
+            # 寫音符的 AI 在這個字這裡一個音都沒寫（音高不穩，例如唱得很輕），但聽字的 AI 有聽到這個字：
+            # 瀏覽器的耳朵在下一個字開始之前還聽得到聲音的話，這個字就唱到那裡
+            # （不然這個字只有一瞬間，那段時間不算有字，也就補不了評分條）
+            if not item["last"] and item["heard"] and last_voice is not None:
+                voice_end = last_voice(start, next_start)
+                if voice_end is not None:
+                    end = max(end, voice_end)
         item["token"]["start"] = round(start, 3)
         item["token"]["end"] = round(max(end, start), 3)
 
@@ -681,8 +815,11 @@ def time_lines(raw_lines, all_tokens, times, together, first_of, notes, heard, e
             if item["last"]:
                 item["mark"] = end_mark(row)
             item["first"] = index == 0
+            if index == 0:
+                item["line_time"] = times[row]   # 歌詞檔給這一句的時間（整首移過、整段搬過）
             items.append(item)
-    fit_to_runs(items, runs, pieces, end_time, make_quiet_check(loudness, hop, pieces))
+    fit_to_runs(items, runs, pieces, end_time, make_quiet_check(loudness, hop, pieces),
+                make_voice_onset(loudness, hop, pieces), make_last_voice(heard, hop))
 
     # 跟上一句一起唱的第二句：在第一句的時間裡自己對
     for second in first_of:

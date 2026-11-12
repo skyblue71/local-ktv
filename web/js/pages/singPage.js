@@ -307,6 +307,8 @@ function showStartScreen() {
     '  <div class="button-row">' +
     '    <button class="btn btn-primary btn-big start-button" id="start-button">' + icon('mic') + ' ' + t('開始') + '</button>' +
     '    <button class="btn btn-ghost" id="start-settings">' + icon('settings') + ' ' + t('設定') + '</button>' +
+    '    <a class="btn btn-ghost" id="start-back" href="#/song/' + encodeURIComponent(page.songId) + '">' +
+    icon('back') + ' ' + t('返回') + '</a>' +
     '  </div>' +
     '</div>');
   document.getElementById('start-button').addEventListener('click', startSinging);

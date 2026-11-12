@@ -10,6 +10,7 @@
 import { getAudioContext } from '../audio/audioContext.js';
 import { listMicrophones, Microphone } from '../audio/microphone.js';
 import { frequencyToMidi, midiToName } from '../game/noteNames.js';
+import { DIFFICULTY } from '../game/scorer.js';
 import { LANGUAGES, t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings, saveSettings } from '../settings.js';
@@ -37,6 +38,16 @@ export async function openSettingsDialog(options) {
   function switchRow(label, id) {
     return row(label, id, '<div><input type="checkbox" class="switch" id="' + id + '"></div>');
   }
+  // 「難度」的說明：每一種難度音可以差多少（數字直接拿評分器的，改了評分器這裡也會跟著變）
+  function difficultyHelp() {
+    let text = t('你唱的音跟評分條差多少還算對。單位是半音（鋼琴上相鄰兩個鍵的差）：\n');
+    const names = { easy: t('簡單'), normal: t('普通'), hard: t('困難') };
+    for (const key of ['easy', 'normal', 'hard']) {
+      text += t('{name}：差 {full} 以內滿分，差到 {zero} 就 0 分\n',
+        { name: names[key], full: DIFFICULTY[key][0], zero: DIFFICULTY[key][1] });
+    }
+    return text + t('\n只影響之後唱的分數，已經存的分數不會變');
+  }
   function rangeRow(label, id, min, max, step) {
     return row(label, id,
       '<div class="range-row"><input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '">' +
@@ -58,13 +69,13 @@ export async function openSettingsDialog(options) {
     '          <span class="test-note" id="test-note">—</span>' +
     '        </div>' +
     rangeRow(t('靈敏度') + helpTip(t('數字越小越靈敏；旁邊太吵就調大')), 'set-gate', 1, 40, 1) +
-    switchRow(t('迴音消除') + helpTip(t('用喇叭唱的時候打開；戴耳機請關掉，比較準')), 'set-echo') +
+    switchRow(t('迴音消除') + helpTip(t('用喇叭唱的時候打開：把麥克風收到的伴奏消掉。\n戴耳機請關掉：打開會改到你的聲音，音高會聽錯')), 'set-echo') +
     '      </div>' +
     '    </section>' +
     '    <section class="settings-section tone-gold">' +
     '      <h4>' + icon('star') + ' ' + t('評分') + '</h4>' +
     '      <div class="form-grid">' +
-    row(t('難度') + helpTip(t('簡單：音差一點也算對\n困難：要很準\n\n只影響之後唱的分數，已經存的分數不會變')), 'set-difficulty',
+    row(t('難度') + helpTip(difficultyHelp()), 'set-difficulty',
       '<select class="input" id="set-difficulty">' +
       '<option value="easy">' + t('簡單') + '</option><option value="normal">' + t('普通') + '</option><option value="hard">' + t('困難') + '</option>' +
       '</select>') +

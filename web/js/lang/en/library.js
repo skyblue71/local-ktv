@@ -43,7 +43,7 @@ export const LIBRARY = {
   '讀取': 'Load',
   '會下載影片當 MV 背景': 'The video is downloaded as the MV background',
   '最高 1080p。請只下載你有權利使用的影片': 'Up to 1080p. Only download videos you have the right to use',
-  '分出伴奏和原唱：評分更準，也可以開導唱': 'Splits the backing track and original vocals: scoring is more accurate, and you can turn on Guide vocal',
+  '把歌分成伴奏和原唱的人聲。\n評分條是照原唱的人聲畫的，沒分出來會畫到樂器的音；也才有導唱可以開': 'Splits the song into the backing track and the original vocals.\nPitch bars are drawn from the original vocals. Without this they may follow instruments. It also lets you turn on Guide vocal',
   '（未安裝）': '(not installed)',
   '歌曲': 'Song',
   '電腦檔案': 'File',

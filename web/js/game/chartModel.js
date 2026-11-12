@@ -1,11 +1,10 @@
-// 修譜的資料：音符清單、現在選了哪一個、復原（Ctrl+Z）
+// 修譜的資料：音符清單、現在選了哪一個（復原、重做在 chartHistory.js）
 //
 // 每個音符 { s: 開始秒數, e: 結束秒數, p: 音高(半音編號), u: 1 }
 //   u = 1：你畫的或改過的（唱歌時你畫的就算、只照你畫的音高評分）
 //   沒有 u：AI 原本的音，沒動過
 
 const MIN_LENGTH = 0.08;   // 一個音最短幾秒（太短的拖不出來，也按不到）
-const HISTORY_LIMIT = 100; // 最多可以復原幾步
 
 function copyNotes(notes) {
   const result = [];
@@ -29,44 +28,17 @@ export class ChartModel {
     this.load(notes);
   }
 
-  // 換成另一份譜（例如還原 AI 的譜）：復原的紀錄也清掉
+  // 換成另一份譜（例如回到 AI 的譜、復原到之前的樣子）
   load(notes) {
     this.notes = copyNotes(notes);
     this.sort();
     this.selected = null;
-    this.history = [];
   }
 
   sort() {
     this.notes.sort(function (a, b) {
       return a.s - b.s;
     });
-  }
-
-  // 改之前先記下來（復原用）
-  remember() {
-    this.history.push(copyNotes(this.notes));
-    if (this.history.length > HISTORY_LIMIT) {
-      this.history.shift();
-    }
-  }
-
-  // 剛剛記下來、結果沒有改（例如只是點一下選音符）：那一筆不要
-  forget() {
-    this.history.pop();
-  }
-
-  canUndo() {
-    return this.history.length > 0;
-  }
-
-  undo() {
-    if (this.history.length === 0) {
-      return false;
-    }
-    this.notes = this.history.pop();
-    this.selected = null;
-    return true;
   }
 
   // 新增一個你畫的音（會自動選起來）

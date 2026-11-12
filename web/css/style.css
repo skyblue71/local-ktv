@@ -1731,6 +1731,13 @@ body.singing .page-streak {
   overflow-y: auto;
 }
 
+/* 伺服器正在重做字幕：預覽先變淡、不能按 */
+.lyrics-preview.busy {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
 .preview-line {
   display: flex;
   gap: 12px;
@@ -2205,8 +2212,20 @@ ruby rt {
   margin-bottom: 8px;
 }
 
+/* 清單上面那一行：左邊「找到 N 份」，右邊你這首歌的長度 */
+.picker-status-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .picker-status {
   min-height: 22px;
+}
+
+.picker-length {
+  flex-shrink: 0;
 }
 
 .search-results {
@@ -2224,6 +2243,44 @@ ruby rt {
 .search-results.busy {
   opacity: 0.6;
   pointer-events: none;
+}
+
+/* 加歌時，清單下面那一塊：選好的那一份歌詞的每一句 */
+.add-column .search-results {
+  max-height: 250px;
+}
+
+.picker-lyrics {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.picker-lyrics-title {
+  margin-bottom: 4px;
+}
+
+.picker-lyrics-lines {
+  max-height: 170px;
+  margin-right: -6px;
+  padding-right: 6px;
+  overflow-y: auto;
+}
+
+.picker-lyrics-line {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.picker-lyrics-line .line-time {
+  min-width: 34px;
+  padding-top: 2px;
 }
 
 .lyrics-picker.faded .picker-results {
@@ -2312,6 +2369,65 @@ ruby rt {
 }
 
 /* 下面的前兩句歌詞：一樣整個看得到，太長就換行 */
+/* 每一筆歌詞下面那一行：專輯名，後面一顆一顆的小標籤（長度、歌詞到哪裡、跟你的歌差幾秒） */
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 6px;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.result-album {
+  margin-right: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.chip {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.chip .icon {
+  width: 1em;
+  height: 1em;
+  opacity: 0.8;
+}
+
+.chip-ok {
+  border-color: rgba(108, 240, 160, 0.2);
+  background: rgba(108, 240, 160, 0.09);
+  color: var(--ok);
+}
+
+.chip-warn {
+  border-color: rgba(255, 198, 90, 0.2);
+  background: rgba(255, 198, 90, 0.08);
+  color: var(--warn);
+}
+
+/* 你的歌的長度：比清單裡的標籤亮一點、大一點，一眼找得到 */
+.chip-song {
+  padding: 2px 10px;
+  border-color: rgba(79, 232, 255, 0.28);
+  background: rgba(79, 232, 255, 0.1);
+  color: var(--accent-2);
+  font-size: 12.5px;
+}
+
 .result-preview {
   margin-top: 5px;
   padding-left: 9px;

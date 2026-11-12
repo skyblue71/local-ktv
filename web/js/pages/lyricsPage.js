@@ -30,16 +30,21 @@ const FORMAT_HELP =
 const OFFSET_HELP = t('整首字幕一起移。\n字幕比歌聲早出來 → 按右邊（延後）\n字幕比歌聲晚 → 按左邊（提早）\n') +
   t('也可以直接打秒數，負的是提早\n\n') +
   t('會影響：字幕，和跟著字走的評分條。\n不會影響：你修過的譜、裁切');
-const ALIGN_HELP = t('自動：程式自己把歌詞放到歌手唱的地方。歌詞檔準就照歌詞檔，不準就照 AI 聽到的。\n') +
-  t('照歌詞檔：完全照歌詞檔的時間，可以自己整首提早、延後。\n自動放錯的歌，改選「照歌詞檔」\n\n') +
+const ALIGN_HELP = t('決定每一句從幾秒開始。下面說的 AI，是會聽「每個字在第幾秒唱」的那個模型。\n\n') +
+  t('自動：\n・整首早或晚：程式拿歌詞檔的時間跟歌聲比，自己算要移幾秒。\n') +
+  t('・每一句：AI 聽整首歌，找這一句是在哪裡唱的。跟歌詞檔寫的地方差很多、AI 又很確定，才搬過去。\n') +
+  t('・這支影片沒唱的句子不顯示。\n\n') +
+  t('照歌詞檔：\n・整首早或晚：不會自己移，用你設的「整首移動」。\n') +
+  t('・每一句都待在歌詞檔寫的那段時間裡，不搬、也不會少。\n\n') +
+  t('兩種都一樣：句子裡每個字從幾秒開始，是 AI 聽的。\n自動放錯的歌，改選「照歌詞檔」\n\n') +
   t('換了會影響：這首歌的字幕和評分條重做。\n不會影響：你修過的譜、你調過的字、裁切。\n') +
-  t('「回到預設」：自動、整首移動歸零、AI 認音節打開');
+  t('「回到預設」：自動、整首移動歸零、AI 認音節打開、沒唱的句子不顯示');
 const SYLLABLE_HELP = t('AI 聽出每個字、每一拍什麼時候唱，填色和評分條都照著走。\n') +
-  t('關掉：每一句照歌詞檔的時間，句子裡照評分條把時間分給每個字。\n\n') +
+  t('關掉：AI 不聽字。每一句從歌詞檔的時間開始，句子裡每個字的時間照評分條平均分（跟實際唱的會有落差）；也不會搬句子、不會拿掉沒唱的句子。\n\n') +
   t('會影響：字幕每個字的時間、評分條在哪裡切開。\n不會影響：你修過的譜、你調過的字');
 const TAP_HELP = t('會播放原曲。每一句開始唱的瞬間，按一下空白鍵（或大按鈕）。\n按錯了按 Backspace 退回上一句\n\n') +
   t('全部按完會存進歌詞檔（原本的時間會被換掉），字幕和評分條重做。\n') +
-  t('要完全照你按的時間：「歌詞時間」選「照歌詞檔」。選「自動」的話程式還會再對一次');
+  t('要照你按的時間：「歌詞時間」選「照歌詞檔」。選「自動」的話，程式可能把句子搬到別的地方');
 
 let song = null;
 let savedLrc = '';    // 現在存著的歌詞（清單上標「✓ 已選」用）
@@ -109,7 +114,7 @@ export async function enter(app, id) {
     '      </section>' +
     '    </div>' +
     '    <section class="panel preview-panel">' +
-    '      <h2>' + icon('lyrics') + ' ' + t('預覽') + '</h2>' +
+    '      <h2>' + icon('lyrics') + ' ' + t('預覽') + ' <span class="muted small" id="preview-status"></span></h2>' +
     '      <div id="lyrics-preview" class="lyrics-preview"></div>' +
     '    </section>' +
     '  </div>' +
@@ -256,6 +261,22 @@ function offsetButtonTitle(milliseconds) {
   return t('延後 {seconds} 秒', { seconds: milliseconds / 1000 });
 }
 
+// 改了字幕的設定，伺服器要把字幕重做一次（一兩秒；剛開程式的第一次要載入 AI，會久一點）。
+// 等的時候預覽變淡、標題旁邊寫「重做字幕中…」，按鈕先不能按，才看得出有按到
+function showRebuilding(busy) {
+  const box = document.getElementById('lyrics-preview');
+  const status = document.getElementById('preview-status');
+  if (!box || !status) {
+    return;
+  }
+  box.classList.toggle('busy', busy);
+  status.textContent = busy ? t('重做字幕中…') : '';
+  const button = document.getElementById('absent-toggle');
+  if (button) {
+    button.disabled = busy;
+  }
+}
+
 // 連按好幾下時，一次存完再存下一次（同時送出的話，最後存到的可能不是最後按的數字）
 let offsetSaving = Promise.resolve();
 
@@ -269,6 +290,7 @@ async function saveOffset() {
   if (value === (Number(song.lyrics_offset) || 0)) {
     return;   // 跟已經存的一樣：不用再存
   }
+  showRebuilding(true);
   try {
     // 記住新的偏移：點按同步換算時間要用
     song = await api.updateSong(song.id, { lyrics_offset: value });
@@ -278,6 +300,7 @@ async function saveOffset() {
   } catch (error) {
     showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
+  showRebuilding(false);
 }
 
 // 歌詞時間用哪一種：自動（沒設定過 = 自動）還是照歌詞檔
@@ -296,6 +319,7 @@ function showAlignMode() {
 
 async function applyAutoAlign() {
   const auto = document.getElementById('align-auto').checked;
+  showRebuilding(true);
   try {
     song = await api.updateSong(song.id, { lyrics_auto_align: auto });
     showAlignMode();
@@ -305,12 +329,16 @@ async function applyAutoAlign() {
   } catch (error) {
     showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
+  showRebuilding(false);
 }
 
-// 回到預設：自動、整首移動歸零、AI 認音節打開
+// 回到預設：自動、整首移動歸零、AI 認音節打開、沒唱的句子不顯示
 async function resetTiming() {
+  showRebuilding(true);
   try {
-    song = await api.updateSong(song.id, { lyrics_auto_align: true, lyrics_offset: 0, lyrics_syllable_ai: true });
+    song = await api.updateSong(song.id, {
+      lyrics_auto_align: true, lyrics_offset: 0, lyrics_syllable_ai: true, lyrics_show_absent: false,
+    });
     showAlignMode();
     showOffset(0);
     document.getElementById('syllable-ai').checked = true;
@@ -320,11 +348,13 @@ async function resetTiming() {
   } catch (error) {
     showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
+  showRebuilding(false);
 }
 
 // AI 認音節（每個字、每一拍的填色時間用 MMS）：關掉 = 照音符平均分
 async function applySyllableAi() {
   const checked = document.getElementById('syllable-ai').checked;
+  showRebuilding(true);
   try {
     song = await api.updateSong(song.id, { lyrics_syllable_ai: checked });
     const data = await api.getLyrics(song.id);
@@ -337,6 +367,7 @@ async function applySyllableAi() {
   } catch (error) {
     showToast(t('設定失敗：{message}', { message: error.message }), 'error');
   }
+  showRebuilding(false);
 }
 
 function renderPreview(lyrics) {
@@ -374,14 +405,26 @@ function renderPreview(lyrics) {
         { from: formatTime(section.from), count: section.lines, to: formatTime(section.to) }));
     }
     html += '<div class="notice small">' + t('有 {count} 段歌詞搬到歌手唱的地方', { count: moved.length }) +
-      helpTip(t('這支影片跟歌詞的版本不一樣（中間有劇情、或剪短了），程式照歌聲搬過去：\n') + parts.join('\n')) +
+      helpTip(t('這支影片跟歌詞的版本不一樣（中間有劇情、或剪短了）。AI 聽到這幾句是在別的地方唱的，所以搬過去：\n') + parts.join('\n')) +
       '</div>';
   }
+  // 這支影片沒唱的句子：列出來（前面是歌詞檔給它的時間），旁邊的按鈕可以選要不要顯示
   const absent = lyrics.absent_lines || [];
+  const absentShown = lyrics.absent_shown === true;
   if (absent.length > 0) {
-    html += '<div class="notice small">' + t('影片沒唱的 {count} 句不顯示', { count: absent.length }) +
-      helpTip(t('這幾句在這支影片裡找不到有人唱：\n') + absent.join('\n')) +
-      '</div>';
+    const rows = [];
+    for (const line of absent) {
+      rows.push(absentText(line));
+    }
+    let label = t('影片沒唱的 {count} 句不顯示', { count: absent.length });
+    let button = t('顯示');
+    if (absentShown) {
+      label = t('影片沒唱的 {count} 句照樣顯示', { count: absent.length });
+      button = t('不顯示');
+    }
+    html += '<div class="notice small">' + label +
+      helpTip(t('這幾句在歌詞檔寫的時間完全沒有歌聲，AI 在別的地方也找不到。\n要不要顯示，按右邊的按鈕。前面是歌詞檔寫的時間：\n') + rows.join('\n')) +
+      ' <button type="button" class="btn btn-small" id="absent-toggle">' + button + '</button></div>';
   }
   for (const line of lyrics.lines) {
     let time = '';
@@ -392,6 +435,34 @@ function renderPreview(lyrics) {
       lineHtml(line, settings) + '</div></div>';
   }
   box.innerHTML = html;
+  const absentButton = document.getElementById('absent-toggle');
+  if (absentButton) {
+    absentButton.addEventListener('click', function () {
+      applyShowAbsent(!absentShown);
+    });
+  }
+}
+
+// 沒唱的那一句寫成一行，例如「0:43 還要多久」（舊的資料只有歌詞、沒有時間）
+function absentText(line) {
+  if (typeof line === 'string') {
+    return line;
+  }
+  return formatTime(line.time) + ' ' + line.text;
+}
+
+// 這支影片沒唱的句子要不要照樣顯示
+async function applyShowAbsent(show) {
+  showRebuilding(true);
+  try {
+    song = await api.updateSong(song.id, { lyrics_show_absent: show });
+    const data = await api.getLyrics(song.id);
+    renderPreview(data.lyrics);
+    showToast(show ? t('沒唱的句子：顯示') : t('沒唱的句子：不顯示'), 'ok');
+  } catch (error) {
+    showToast(t('設定失敗：{message}', { message: error.message }), 'error');
+  }
+  showRebuilding(false);
 }
 
 // ---------- 點按同步 ----------

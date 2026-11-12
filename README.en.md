@@ -14,7 +14,7 @@ A karaoke app that runs on your own PC and scores your singing. You add the song
 - **Word-by-word lyrics**: words light up as they are sung. Japanese shows kana and romaji, Chinese shows Zhuyin or Pinyin
 - **Automatic lyrics**: finds timed lyrics on LRCLIB and lines them up with where the singer actually sings
 - **MV background**: songs with video play the MV behind the lyrics
-- **Edit it yourself**: drag the pitch bars and the timing of each word with the mouse
+- **Edit it yourself**: drag the pitch bars and the timing of each word with the mouse, with step-by-step undo and redo
 - **Monitor, reverb, recording**: listen again after singing, or download the recording as MP3
 - **Chinese and English interface**: switch in Settings
 - **Updates itself**: when a newer version is out, it asks before it starts. Your songs and scores are not touched

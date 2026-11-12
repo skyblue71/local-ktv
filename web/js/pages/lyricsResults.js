@@ -70,33 +70,66 @@ function previewText(item) {
   return lines.join(' / ');
 }
 
+// 這份歌詞的每一句 [{ time: 第幾秒（沒有時間就是 null）, text: 歌詞 }]（去掉時間標記；空白行、[ti:…] 這類資訊不算）
+export function lyricLines(item) {
+  const text = item.synced || item.plain || '';
+  const lines = [];
+  for (const raw of text.split('\n')) {
+    const words = raw.replace(/\[[^\]]*\]/g, '').replace(/<\d+:\d+(\.\d+)?>/g, '').trim();
+    if (words === '') {
+      continue;
+    }
+    let time = null;
+    const tag = raw.match(/^\s*\[(\d+):(\d+(?:\.\d+)?)\]/);
+    if (tag) {
+      time = Number(tag[1]) * 60 + Number(tag[2]);
+    }
+    lines.push({ time: time, text: words });
+  }
+  return lines;
+}
+
 // 長度：跟你的歌差不多就打個綠勾；差很多寫「長 60 秒」「短 60 秒」
 const SAME_LENGTH = 2;   // 差幾秒以內算一樣長
 
-// 標的長度；歌詞最後一句比它還晚（標錯了）就在後面多寫「歌詞到 4:41」
-function labelHtml(item) {
-  let html = formatTime(item.duration);
+// 一顆小標籤：一件事放一顆，不全部擠在同一行字裡
+//   kind：'' 一般（灰）、'ok' 綠、'warn' 橘、'song' 你的歌（亮一點）；tip：滑鼠移上去的說明（可以不給）
+export function chip(html, kind, tip) {
+  let className = 'chip';
+  if (kind) {
+    className += ' chip-' + kind;
+  }
+  let title = '';
+  if (tip) {
+    title = ' title="' + escapeHtml(tip) + '"';
+  }
+  return '<span class="' + className + '"' + title + '>' + html + '</span>';
+}
+
+// 長度的標籤：標的長度一顆；歌詞最後一句比它還晚（標錯了）再多一顆「歌詞到 4:41」
+function lengthChips(item) {
+  let html = chip(icon('clock') + ' ' + formatTime(item.duration), '', t('資料庫上標的長度'));
   if ((item.lyrics_end || 0) > (item.duration || 0) + SAME_LENGTH) {
-    html += ' <span class="warn-text" title="' + t('標的長度不對，最後一句歌詞比它還晚') + '">' +
-      t('歌詞到 {time}', { time: formatTime(item.lyrics_end) }) + '</span>';
+    html += chip(t('歌詞到 {time}', { time: formatTime(item.lyrics_end) }), 'warn',
+      t('標的長度不對，最後一句歌詞比它還晚'));
   }
   return html;
 }
 
-function lengthHtml(item, duration) {
-  let html = labelHtml(item);
+// 跟你的歌比長度的那一顆（加歌時才有）：一樣長是綠的，差很多寫「長 60 秒」「短 60 秒」；沒辦法比就沒有
+function compareChip(item, duration) {
   const length = realLength(item);
-  if (duration && length) {
-    const difference = Math.round(length - duration);
-    if (Math.abs(difference) <= SAME_LENGTH) {
-      html += ' <span class="ok-text" title="' + t('跟你的歌一樣長') + '">' + icon('check') + '</span>';
-    } else if (difference > 0) {
-      html += ' <span class="warn-text">' + t('長 {seconds} 秒', { seconds: difference }) + '</span>';
-    } else {
-      html += ' <span class="warn-text">' + t('短 {seconds} 秒', { seconds: -difference }) + '</span>';
-    }
+  if (!duration || !length) {
+    return '';
   }
-  return html;
+  const difference = Math.round(length - duration);
+  if (Math.abs(difference) <= SAME_LENGTH) {
+    return chip(icon('check') + ' ' + t('一樣長'), 'ok', t('跟你的歌一樣長'));
+  }
+  if (difference > 0) {
+    return chip(t('長 {seconds} 秒', { seconds: difference }), 'warn');
+  }
+  return chip(t('短 {seconds} 秒', { seconds: -difference }), 'warn');
 }
 
 // 「字幕跳出來時原唱沒在唱」的句子，幾句以內不算時間不準
@@ -157,7 +190,7 @@ function matchTag(item) {
     return '<span class="tag tag-warn" title="' + escapeHtml(tip) + '">' + icon('warn') + ' ' + t('可能不準') + '</span>';
   }
   if (item.match.silent <= FEW_SILENT) {
-    let tip = t('字幕會準時出現');
+    let tip = t('每一句字幕出來的時候，原唱都有在唱');
     if (Math.abs(item.match.shift) >= 0.1) {
       tip += t('（程式會自己調 {seconds} 秒）', { seconds: Math.abs(item.match.shift).toFixed(1) });
     }
@@ -239,15 +272,14 @@ export function resultsHtml(results, duration, chosenIndex, canListen) {
       }
     }
 
-    // 下面一行小字：專輯 · 長度（加歌時跟你的歌比長度）
-    const details = [];
+    // 下面一行：專輯名，後面一顆一顆的小標籤（長度、歌詞到哪裡；加歌時多一顆跟你的歌比長度）
+    let meta = '';
     if (item.album && item.album !== '-' && item.album !== 'null') {
-      details.push(escapeHtml(item.album));
+      meta += '<span class="result-album">' + escapeHtml(item.album) + '</span>';
     }
-    if (hasMatch) {
-      details.push(labelHtml(item));
-    } else {
-      details.push(lengthHtml(item, duration));
+    meta += lengthChips(item);
+    if (!hasMatch) {
+      meta += compareChip(item, duration);
     }
 
     // 右邊：時間準不準（編輯歌詞頁才比得出來；加歌時只標「只有文字」）、試聽鍵
@@ -271,7 +303,7 @@ export function resultsHtml(results, duration, chosenIndex, canListen) {
     const info =
       '<div class="result-title">' + recommend + '<b>' + escapeHtml(item.title) + '</b>' +
       '<span class="muted"> · ' + escapeHtml(item.artist) + '</span></div>' +
-      '<div class="muted small">' + details.join(' · ') + '</div>' +
+      '<div class="result-meta">' + meta + '</div>' +
       preview;
     html += choiceRowHtml(i, i === chosenIndex, info, actions);
   }

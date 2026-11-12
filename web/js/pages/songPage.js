@@ -99,7 +99,7 @@ async function render(app) {
       '</div>';
   } else if (song.has_vocals && song.pitch_source === 'original') {
     statusHtml = '<div class="notice">' + t('人聲沒分離成功，評分可能不準') +
-      helpTip(t('評分用的旋律是從原曲分析的')) + '</div>';
+      helpTip(t('評分條是從整首歌（人聲加伴奏）聽出來的，可能會畫到樂器的音，不是歌手唱的音')) + '</div>';
   }
 
   const songPath = '#/song/' + encodeURIComponent(song.id);
@@ -157,7 +157,7 @@ async function render(app) {
     const dialog = openDialog(t('重新處理'),
       '<p>' + t('重新分析音高、產生字幕') + helpTip(t('會重做：轉檔、分人聲、評分條（AI 的）、字幕。\n') +
         t('會留著：歌詞、你修過的譜、你調過的字、裁切、分數、封面。\n\n') +
-        t('選「不去人聲」：沒有導唱、不能用「測試」，AI 也聽不到字（字幕照評分條分，比較不準）')) + '</p>' +
+        t('選「不去人聲」：沒有導唱、不能用「測試」，AI 也聽不到字（每個字的時間改成照評分條平均分，跟實際唱的會有落差）')) + '</p>' +
       '<div class="dialog-actions">' +
       '  <button class="btn" id="no-separate">' + t('不去人聲') + '</button>' +
       '  <button class="btn btn-primary" id="yes-separate">' + t('AI 去人聲') + '</button>' +

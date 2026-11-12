@@ -68,6 +68,7 @@ class SongUpdate(BaseModel):
     lyrics_offset: int | None = None
     lyrics_auto_align: bool | None = None
     lyrics_syllable_ai: bool | None = None   # 每個字的填色用 AI 認音節（MMS）；False = 照音符平均分
+    lyrics_show_absent: bool | None = None   # 這支影片沒唱的句子照樣顯示；False = 不顯示
 
 
 class LyricsUpdate(BaseModel):
@@ -233,10 +234,12 @@ def update_song(song_id: str, update: SongUpdate):
         changes["lyrics_auto_align"] = update.lyrics_auto_align
     if update.lyrics_syllable_ai is not None:
         changes["lyrics_syllable_ai"] = update.lyrics_syllable_ai
+    if update.lyrics_show_absent is not None:
+        changes["lyrics_show_absent"] = update.lyrics_show_absent
     meta = song_store.update_meta(song_id, changes)
-    # 偏移、自動對齊、AI 認音節改了，字幕要重新產生
+    # 偏移、自動對齊、AI 認音節、沒唱的句子要不要顯示改了，字幕要重新產生
     if (update.lyrics_offset is not None or update.lyrics_auto_align is not None
-            or update.lyrics_syllable_ai is not None):
+            or update.lyrics_syllable_ai is not None or update.lyrics_show_absent is not None):
         rebuild_lyrics(song_id)
     return song_store.get_meta(song_id)
 

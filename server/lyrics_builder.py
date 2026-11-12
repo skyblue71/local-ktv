@@ -349,18 +349,21 @@ def times_from_word_lrc(raw_lines, all_tokens, times, offset, notes, heard, end_
 
 
 def build_lyrics(lrc_text, notes, duration, offset_ms=0, auto_align=True, heard=None, hop=0.0, emission=None,
-                 loudness=None):
+                 loudness=None, show_absent=False):
     """
     auto_align：整首歌詞自動對到歌手真的唱的地方（整首早晚、整段搬家、每一句的位置）；關掉 = 照歌詞檔的時間
     heard：pitch.json 的「瀏覽器的耳朵」資料（哪些音聽得到；沒有也可以）
     emission：認音節的結果（syllable_model.load_emission）；有的話每個字的時間用 MMS 聽，沒有就照音符分
     loudness、hop：pitch.json 的人聲音量（每一格 dB）；句尾斷開的小聲聲音量出小幾 dB，記在 "quiet"（沒有也可以）
+    show_absent：這支影片沒唱的句子要不要照樣顯示（預設不顯示；「編輯歌詞」頁可以切換）
     回傳：
       {
         "synced": True/False,
         "lang": 主要語言,
         "lines": [{"start", "end", "text", "lang", "singer", "tokens": [...], "mms"（AI 聽的）, "mms_score"}, ...],
-        "song_zero": 歌詞版本的 0:00 在影片第幾秒, "moved_sections": 整段搬家的段落, "absent_lines": 影片沒唱、拿掉的句子
+        "song_zero": 歌詞版本的 0:00 在影片第幾秒, "moved_sections": 整段搬家的段落,
+        "absent_lines": 影片沒唱的句子 [{"time": 歌詞檔給它的時間, "text": 歌詞}, ...],
+        "absent_shown": 那幾句有沒有照樣顯示（show_absent）
       }
     """
     parsed = parse_lrc(lrc_text)
@@ -448,9 +451,10 @@ def build_lyrics(lrc_text, notes, duration, offset_ms=0, auto_align=True, heard=
                 if section["first_row"] == first_row:
                     song_zero += section["move"]   # 第一句整段搬了：歌的開頭也跟著搬
             for row in sorted(absent_rows):
-                absent_lines.append(strip_reading_marks(raw_lines[row]["text"]))
-                raw_lines[row]["text"] = ""   # 當成空白行：只標示上一句在這裡結束
-                all_tokens[row] = []
+                absent_lines.append({"time": round(times[row], 2), "text": strip_reading_marks(raw_lines[row]["text"])})
+                if not show_absent:
+                    raw_lines[row]["text"] = ""   # 當成空白行：只標示上一句在這裡結束
+                    all_tokens[row] = []
 
     # 2. 每個字從幾秒唱到幾秒（word_timeline.py）
     end_time = duration
@@ -513,4 +517,4 @@ def build_lyrics(lrc_text, notes, duration, offset_ms=0, auto_align=True, heard=
 
     return {"synced": True, "lang": song_language, "lines": lines, "auto_shift": auto_shift,
             "syllables": syllables, "quiet": quiet, "song_zero": round(song_zero, 3),
-            "moved_sections": moved_sections, "absent_lines": absent_lines}
+            "moved_sections": moved_sections, "absent_lines": absent_lines, "absent_shown": show_absent}

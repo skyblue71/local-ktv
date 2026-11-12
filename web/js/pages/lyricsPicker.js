@@ -18,6 +18,7 @@
 //     onSongChange: function (song) { }   補了歌名、歌手之後（可以不給）
 //     beforeListen: function () { }       按 ▶ 試聽之前（可以不給，例如先停掉點按同步）
 //     allowNone:    true = 清單最後多一列「不用歌詞」（加歌、還沒按加入時才有）
+//     showLyrics:   true = 清單下面多一塊，列出選好的那一份歌詞的每一句（加歌時用；「編輯歌詞」頁自己有預覽）
 //   });
 //   picker.followSong(歌名, 歌手)   歌曲名稱改了：搜尋欄還沒自己打過字的話，跟著換
 //   picker.reset()                 清掉結果和搜尋欄
@@ -32,10 +33,10 @@
 import * as api from '../api.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
-import { escapeHtml, helpTip } from '../ui.js';
+import { escapeHtml, formatTime, helpTip } from '../ui.js';
 import { LyricsListen } from './lyricsListen.js';
 import {
-  checkDetail, checkProblem, choiceRowHtml, isRecommended, resultsHtml, sortByMatch, sortResults,
+  checkDetail, checkProblem, chip, choiceRowHtml, isRecommended, lyricLines, resultsHtml, sortByMatch, sortResults,
 } from './lyricsResults.js';
 import { changedNames } from './songNames.js';
 
@@ -69,7 +70,16 @@ export class LyricsPicker {
     this.saveError = '';
     this.lastPicked = null;    // 最後按「選這個」存好的那一份
     this.destroyed = false;
+    this.searching = false;    // 正在搜尋（清單先留著、變淡，等新的結果回來再換）
+    this.matching = false;     // 正在跟歌聲比對（比完才把清單放上來）
+    this.searchingFor = null;  // 正在搜的字 { title, artist }
+    this.searchedFor = null;   // 現在這份清單是搜什麼字找到的（一樣的字不用再搜一次）
+    this.shownLyrics = null;   // 「歌詞內容」那一塊現在顯示的是哪一份
 
+    let lyricsBox = '';
+    if (options.showLyrics) {
+      lyricsBox = '<div class="picker-lyrics hidden" data-role="lyrics"></div>';
+    }
     area.innerHTML =
       '<div class="picker-search">' +
       '  <input class="input" data-role="title" placeholder="' + t('歌名') + '" aria-label="' + t('搜尋的歌名') + '">' +
@@ -78,12 +88,16 @@ export class LyricsPicker {
       '" aria-label="' + t('搜尋') + '">' +
       icon('search') + '</button>' +
       '</div>' +
-      '<div class="picker-status small" data-role="status"></div>' +
-      '<div class="search-results picker-results" data-role="results" role="radiogroup" aria-label="' + t('歌詞') + '"></div>';
+      '<div class="picker-status-row">' +
+      '  <div class="picker-status small" data-role="status"></div>' +
+      '  <div class="picker-length" data-role="length"></div>' +
+      '</div>' +
+      '<div class="search-results picker-results" data-role="results" role="radiogroup" aria-label="' + t('歌詞') + '"></div>' +
+      lyricsBox;
 
     const picker = this;
     this.part('search').addEventListener('click', function () {
-      picker.search();
+      picker.search(true);
     });
     // 點一列 = 選這一份（點到右邊的試聽鍵、標籤不算）
     const results = this.part('results');
@@ -118,7 +132,7 @@ export class LyricsPicker {
       input.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
           event.preventDefault();
-          picker.search();
+          picker.search(true);
         }
       });
     }
@@ -130,6 +144,17 @@ export class LyricsPicker {
 
   setStatus(html) {
     this.part('status').innerHTML = html;
+  }
+
+  // 清單右上角：你這首歌有多長（清單每一份都標了長度，放在一起好對照）；還不知道多長就不顯示
+  showSongLength() {
+    const seconds = this.options.getQuery().duration || 0;
+    let html = '';
+    if (seconds > 0) {
+      html = chip(icon('music') + ' ' + t('你的歌 {time}', { time: formatTime(seconds) }), 'song',
+        t('你這首歌的長度'));
+    }
+    this.part('length').innerHTML = html;
   }
 
   // 歌曲名稱、歌手改了：搜尋欄還沒自己打過字的話，跟著換成一樣的
@@ -156,12 +181,35 @@ export class LyricsPicker {
     this.edited = false;
     this.matchNote = '';
     this.currentCheck = null;
+    this.searching = false;
+    this.matching = false;
+    this.searchingFor = null;
+    this.searchedFor = null;
     this.part('title').value = '';
     this.part('artist').value = '';
     this.render();
   }
 
-  search() {
+  // 搜尋欄現在的字，跟 words（{ title, artist }，上次搜的字）是不是一樣
+  sameWords(words) {
+    if (words === null) {
+      return false;
+    }
+    return words.title === this.part('title').value.trim() && words.artist === this.part('artist').value.trim();
+  }
+
+  // 搜尋。同樣的字不重複搜（不然會「搜尋中 → 找不到 → 又搜尋中 → 又找不到」閃兩次）：
+  //   同樣的字正在搜 → 等那一次就好
+  //   同樣的字剛搜過（不管有沒有找到）→ 不再搜；again = true（你自己按搜尋鍵、按 Enter）才會再搜一次
+  search(again) {
+    if (this.pending !== null && this.sameWords(this.searchingFor)) {
+      return this.pending;
+    }
+    if (!again && this.pending === null && this.sameWords(this.searchedFor)) {
+      this.stale = false;
+      this.setStatus(this.statusHtml());
+      return Promise.resolve();
+    }
     this.pending = this.runSearch();
     return this.pending;
   }
@@ -181,6 +229,7 @@ export class LyricsPicker {
     this.duration = song.duration || 0;
     this.stale = false;
     this.saveError = '';
+    this.showSongLength();
 
     // 搜尋欄是空的：先用歌曲名稱、歌手
     if (this.part('title').value.trim() === '' && this.part('artist').value.trim() === '') {
@@ -196,6 +245,7 @@ export class LyricsPicker {
       this.chosen = -1;
       this.searched = true;
       this.pending = null;
+      this.searchedFor = null;
       this.render();
       let tip = SEARCH_TIP;
       if (this.options.allowNone) {
@@ -205,9 +255,13 @@ export class LyricsPicker {
       return;
     }
 
+    // 舊的清單先留著、變淡（不先清空：清空再出現會閃一下），新的結果回來再換
     this.stopListen();
+    this.searching = true;
+    this.matching = false;
+    this.searchingFor = { title: title, artist: artist };
+    this.part('results').classList.add('busy');
     this.setStatus(t('搜尋歌詞中…'));
-    this.part('results').innerHTML = '';
     let results = [];
     let failed = '';
     try {
@@ -218,22 +272,32 @@ export class LyricsPicker {
     if (this.destroyed || myNumber !== this.searchNumber) {
       return;   // 這段時間又搜了一次（或清掉了），這次的結果不要了
     }
+    this.searching = false;
+    this.searchingFor = null;
+    this.searchedFor = null;
+    if (failed === '') {
+      this.searchedFor = { title: title, artist: artist };
+    }
 
-    // 同名的歌可能有很多首：先照長度排，馬上顯示
+    // 同名的歌可能有很多首：先照長度排
     this.results = sortResults(results, this.duration);
     this.matchNote = '';
     this.currentCheck = null;
     this.pickDefault();
     this.searched = true;
     this.pending = null;
-    this.render();
 
+    // 有歌了（「編輯歌詞」頁）：還要拿每一份跟歌聲比，最準的排前面。
+    // 等比完再把清單放上來：先照長度排一次、比完又重排一次的話，清單會跳兩次、「推薦」也會換人
+    const willMatch = failed === '' && this.song !== null && this.results.length > 0;
+    if (!willMatch) {
+      this.render();
+    }
     if (failed !== '') {
       this.setStatus(t('搜尋失敗：{message}', { message: escapeHtml(failed) }) + helpTip(SEARCH_TIP));
       return;
     }
-    // 有歌了：再拿每一份跟歌聲比，最準的排前面
-    if (this.song !== null && this.results.length > 0) {
+    if (willMatch) {
       await this.runMatch();
     }
   }
@@ -269,10 +333,12 @@ export class LyricsPicker {
   }
 
   // 每一份歌詞跟這首歌的歌聲比對（伺服器 lyrics/match），標出時間準不準，最準的排前面
+  //   比對的時候清單先不換（舊的留著、變淡），上面那一行寫「找到 N 份　比對中…」，比完才一次放上來
   async runMatch() {
     const myResults = this.results;
-    this.matchNote = '<p class="muted small">' + t('比對中…') + '</p>';
-    this.render();
+    this.matching = true;
+    this.part('results').classList.add('busy');
+    this.setStatus(this.statusHtml());
     let answer = null;
     let failed = '';
     try {
@@ -287,6 +353,7 @@ export class LyricsPicker {
     if (this.destroyed || myResults !== this.results) {
       return;   // 比對的時候又搜尋了一次
     }
+    this.matching = false;
     if (answer === null) {
       this.matchNote = '<p class="muted small">' + t('比對失敗') + helpTip(failed + '\n' + t('先照長度排')) + '</p>';
       this.render();
@@ -456,14 +523,51 @@ export class LyricsPicker {
         t('之後可以到「編輯歌詞」再找') + '</div>',
         '', 'result-none');
     }
+    // 重畫之後捲動的位置要一樣（不然點了下面的一列，清單會跳回最上面，那一列就看不到了）
+    const scrolled = box.scrollTop;
     box.innerHTML = html;
-    box.classList.toggle('busy', this.saving);
+    box.scrollTop = scrolled;
+    box.classList.toggle('busy', this.saving || this.searching || this.matching);
+    this.showChosenLyrics();
+    this.showSongLength();
     this.setStatus(this.statusHtml());
+  }
+
+  // 清單下面那一塊：選好的那一份歌詞的每一句（options.showLyrics 才有）
+  showChosenLyrics() {
+    const box = this.part('lyrics');
+    if (!box) {
+      return;
+    }
+    const item = this.chosenItem();
+    if (item === this.shownLyrics) {
+      return;   // 還是同一份：不重畫，捲到哪裡就留在哪裡
+    }
+    this.shownLyrics = item;
+    if (item === null) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+    let html = '<div class="picker-lyrics-title small muted">' + t('歌詞內容') + '</div><div class="picker-lyrics-lines">';
+    for (const line of lyricLines(item)) {
+      let time = '';
+      if (line.time !== null) {
+        time = formatTime(line.time);
+      }
+      html += '<div class="picker-lyrics-line"><span class="line-time">' + time + '</span>' +
+        '<span>' + escapeHtml(line.text) + '</span></div>';
+    }
+    box.innerHTML = html + '</div>';
+    box.classList.remove('hidden');
   }
 
   statusHtml() {
     if (this.saving) {
       return t('儲存中…');
+    }
+    if (this.matching) {
+      return '<span class="muted">' + t('找到 {count} 份', { count: this.results.length }) + '　' + t('比對中…') + '</span>';
     }
     const beforeAdd = this.options.currentLrc() === null;
     let text = '';
@@ -478,7 +582,7 @@ export class LyricsPicker {
       }
       text = t('找不到「{query}」', { query: escapeHtml(this.lastQuery) }) + helpTip(tip);
     } else {
-      let tip = t('點一列就換成那一份。按 ▶ 可以先聽聽看字幕準不準\n\n') +
+      let tip = t('點一列就換成那一份。按 ▶ 可以先聽聽看，字幕有沒有跟歌聲同時出來\n\n') +
         t('換了會影響：字幕和評分條重做、整首移動歸零。\n') +
         t('不會影響：你修過的譜、裁切。\n你調過的字，句子文字一樣的才留著');
       if (beforeAdd) {

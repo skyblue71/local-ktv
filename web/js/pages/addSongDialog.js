@@ -10,6 +10,7 @@
 import * as api from '../api.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
+import { loadSettings, saveSettings } from '../settings.js';
 import { escapeHtml, formatTime, helpTip, openDialog, showToast } from '../ui.js';
 import { LyricsPicker } from './lyricsPicker.js';
 import { fillNames } from './songNames.js';
@@ -29,7 +30,7 @@ export function openAddSongDialog(systemInfo, onDone) {
       '  ' + t('會下載影片當 MV 背景') + helpTip(t('最高 1080p。請只下載你有權利使用的影片')) +
       '</div>';
   }
-  let separateNote = helpTip(t('分出伴奏和原唱：評分更準，也可以開導唱'));
+  let separateNote = helpTip(t('把歌分成伴奏和原唱的人聲。\n評分條是照原唱的人聲畫的，沒分出來會畫到樂器的音；也才有導唱可以開'));
   let separateAttribute = 'checked';
   if (!canSeparate) {
     separateNote = '<span class="muted small">' + t('（未安裝）') + '</span>';
@@ -121,6 +122,7 @@ export function openAddSongDialog(systemInfo, onDone) {
       return null;
     },
     allowNone: true,
+    showLyrics: true,   // 清單下面列出選好的那一份歌詞，加入之前先看得到內容
   });
 
   // 歌曲名稱、歌手改了：選單的搜尋欄還沒自己打過字的話，跟著換
@@ -165,20 +167,33 @@ export function openAddSongDialog(systemInfo, onDone) {
     }
   }
 
+  // 切到「電腦檔案」或「YouTube」那一頁
+  function showTab(name) {
+    mode = name;
+    for (const other of box.querySelectorAll('.tab')) {
+      other.classList.toggle('active', other.dataset.tab === name);
+    }
+    box.querySelector('#file-panel').classList.toggle('hidden', mode !== 'file');
+    box.querySelector('#youtube-panel').classList.toggle('hidden', mode !== 'youtube');
+    picker.reset();   // 換了來源，剛剛搜到的歌詞不一定是這首
+    updateButton();
+    if (mode === 'youtube' && canYoutube) {
+      box.querySelector('#youtube-url').focus();
+    }
+  }
+
   for (const tab of box.querySelectorAll('.tab')) {
     tab.addEventListener('click', function () {
-      mode = tab.dataset.tab;
-      for (const other of box.querySelectorAll('.tab')) {
-        other.classList.toggle('active', other === tab);
-      }
-      box.querySelector('#file-panel').classList.toggle('hidden', mode !== 'file');
-      box.querySelector('#youtube-panel').classList.toggle('hidden', mode !== 'youtube');
-      picker.reset();   // 換了來源，剛剛搜到的歌詞不一定是這首
-      updateButton();
-      if (mode === 'youtube' && canYoutube) {
-        box.querySelector('#youtube-url').focus();
-      }
+      showTab(tab.dataset.tab);
+      // 記住這次選的是哪一頁，下次打開直接是這一頁
+      const settings = loadSettings();
+      settings.addSongTab = tab.dataset.tab;
+      saveSettings(settings);
     });
+  }
+  // 上次選的是 YouTube：打開就是 YouTube 那一頁
+  if (loadSettings().addSongTab === 'youtube') {
+    showTab('youtube');
   }
 
   // 讀檔案有多長（只讀檔頭資訊，不會播放）
@@ -253,11 +268,35 @@ export function openAddSongDialog(systemInfo, onDone) {
 
   // ---------- YouTube 網址 ----------
 
-  async function readYoutubeInfo() {
+  let readingUrl = '';     // 正在讀取（或已經讀好）的網址
+  let readingJob = null;   // 那一次讀取。同一個網址不讀兩次：貼上會自動讀，再按「讀取」、Enter、「加入」都等同一次
+
+  function readYoutubeInfo() {
     const url = box.querySelector('#youtube-url').value.trim();
+    if (readingJob !== null && readingUrl === url) {
+      return readingJob;
+    }
+    readingUrl = url;
+    readingJob = loadYoutubeInfo(url);
+    return readingJob;
+  }
+
+  async function loadYoutubeInfo(url) {
     const status = box.querySelector('#youtube-status');
     status.textContent = t('讀取中…');
-    youtubeInfo = await api.getYoutubeInfo(url);
+    let info = null;
+    try {
+      info = await api.getYoutubeInfo(url);
+    } catch (error) {
+      if (readingUrl === url) {
+        readingJob = null;   // 讀失敗：下次按「讀取」可以再試
+      }
+      throw error;
+    }
+    if (readingUrl !== url) {
+      return;   // 讀的時候網址又改了：這次的結果不要了
+    }
+    youtubeInfo = info;
 
     // 歌名、歌手還沒填的話，幫忙填上
     if (titleInput.value.trim() === '') {
@@ -278,6 +317,8 @@ export function openAddSongDialog(systemInfo, onDone) {
     const urlInput = box.querySelector('#youtube-url');
     urlInput.addEventListener('input', function () {
       youtubeInfo = null;   // 網址改了，要重新讀取
+      readingUrl = '';
+      readingJob = null;
       picker.reset();       // 剛剛搜到的歌詞也不算了
       updateButton();
     });

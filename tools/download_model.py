@@ -9,6 +9,12 @@
      （Meta 官方伺服器，torchaudio 內建的 MMS_FA 用的就是這個檔案）
      下載後比對大小、伺服器公布的指紋（ETag）和 SHA256（網址、指紋寫在 server\\config.py）。
 
+擋不擋只看「檔案是不是官方的」（大小、指紋）：下載到 .part，檢查通過才改名放進去，不對就刪掉（download_file）。
+  網站的安全憑證驗不過（例如過期）：顯示警告、照樣下載，擋不擋一樣看檔案的指紋。
+下載不了（連不上、下載到一半斷掉、檔案不對）：用中英文說明原因，不顯示一大串錯誤。
+  - 去人聲模型：一定要有，停下來，請晚一點再執行 setup.bat。
+  - 認音節模型：沒有也能用（字幕每個字的時間用猜的），所以安裝照樣完成；再執行一次 setup.bat 會補下載。
+
 平常卡拉OK是「不連網」的（server\\config.py 的 ALLOW_MODEL_DOWNLOAD = False），
 所以換新電腦第一次安裝時，要靠這個程式先把模型下載好。
 電腦裡已經有了，就不會再下載。
@@ -135,29 +141,114 @@ def melband_is_genuine(path):
     return True
 
 
-def download_melband():
-    """去人聲模型 Mel-Band RoFormer：從作者本人的 Hugging Face 下載單一檔案（先存成 .part，下載完才改名）"""
+def say(english, chinese):
+    """印一句話：英文一行、中文一行"""
+    print(english)
+    print(chinese)
+
+
+def short_reason(error):
+    """把很長的連線錯誤縮成一小段原因，例如 certificate has expired"""
+    text = str(error)
+    mark = "certificate verify failed: "
+    if mark in text:
+        text = text.split(mark, 1)[1].split(" (_ssl", 1)[0]
+    return text[:200]
+
+
+def fetch(url, temp, check_certificate):
+    """把 url 的內容存到 temp。check_certificate=False：不檢查網站的安全憑證"""
     import requests
+
+    with requests.get(url, stream=True, timeout=60, verify=check_certificate) as response:
+        response.raise_for_status()
+        with open(temp, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                f.write(chunk)
+
+
+def fetch_without_certificate(url, temp, error):
+    """
+    網站的安全憑證驗不過（過期、對不上）：顯示警告，不檢查憑證再下載一次。
+    憑證只是用來確認「對面是不是真的那個網站」；下載到的檔案之後一定要過 is_genuine（大小、指紋跟官方一樣）
+    才會留下來，所以就算對面是假的，假檔案也用不到
+    """
+    import urllib3
+
+    say("Warning: the site's security certificate could not be verified (" + short_reason(error) + "). "
+        "This is usually a problem on the site, for example an expired certificate.",
+        "警告：這個網站的安全憑證驗不過（" + short_reason(error) + "）。通常是網站那邊的問題，例如憑證過期。")
+    say("Downloading anyway. The file is only kept if its fingerprint matches the official one.",
+        "照樣下載。下載到的檔案，指紋跟官方的一樣才會留下來。")
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)   # 上面已經講過了，不用再印一段英文警告
+    fetch(url, temp, False)
+
+
+def download_file(url, path, is_genuine):
+    """
+    把 url 下載到 path。成功回傳 True。
+    先存成 .part，下載完用 is_genuine(.part 的路徑) 檢查是不是官方的檔案，通過才改名成 path。
+    回傳 False 的情況（都會刪掉 .part、用中英文說明原因）：
+      連不上、下載到一半斷掉；下載到的檔案跟官方的不一樣
+    網站的安全憑證驗不過：顯示警告、照樣下載（fetch_without_certificate），擋不擋看 is_genuine
+    """
+    import requests
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temp = path + ".part"
+    try:
+        try:
+            fetch(url, temp, True)
+        except requests.exceptions.SSLError as error:
+            fetch_without_certificate(url, temp, error)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        remove_if_exists(temp)
+        say("Download failed: could not reach the site, or it took too long to answer.",
+            "下載失敗：連不上這個網站，或等太久沒有回應。")
+        say("Check your network, then try again.",
+            "請確認網路後再試一次。")
+        return False
+    except (requests.exceptions.RequestException, OSError) as error:
+        # 其他情況（例如網站說沒有這個檔案、硬碟滿了）：把原因印出來
+        remove_if_exists(temp)
+        say("Download failed: " + short_reason(error),
+            "下載失敗：" + short_reason(error))
+        say("Check your network (and free disk space), then try again.",
+            "請確認網路（和硬碟空間）後再試一次。")
+        return False
+
+    print("下載完成，檢查是不是官方的檔案…")
+    if not is_genuine(temp):
+        remove_if_exists(temp)
+        say("The downloaded file does not match the official one (size or fingerprint). It was deleted and is not used.",
+            "下載到的檔案跟官方的不一樣（大小或指紋不對），已經刪掉，不會使用。")
+        return False
+    os.replace(temp, path)
+    return True
+
+
+def remove_if_exists(path):
+    if os.path.exists(path):
+        os.remove(path)
+
+
+def download_melband():
+    """去人聲模型 Mel-Band RoFormer：從作者本人的 Hugging Face 下載單一檔案。下載不了就停下來（沒有它不能去人聲）"""
     from server.config import MELBAND_MODEL_DIR, MELBAND_MODEL_NAME, MELBAND_MODEL_URL
 
     path = os.path.join(MELBAND_MODEL_DIR, MELBAND_MODEL_NAME)
     if os.path.exists(path):
         print("去人聲模型已經在電腦裡了，檢查中…")
+        if not melband_is_genuine(path):
+            print("警告：去人聲模型的大小、SHA256 或內容跟官方不一樣，請不要使用！刪掉後再執行一次 setup.bat")
+            print("檔案位置：" + path)
+            sys.exit(1)
     else:
         print("下載去人聲模型（約 913MB）：" + MELBAND_MODEL_URL)
-        os.makedirs(MELBAND_MODEL_DIR, exist_ok=True)
-        temp = path + ".part"
-        with requests.get(MELBAND_MODEL_URL, stream=True, timeout=60) as response:
-            response.raise_for_status()
-            with open(temp, "wb") as f:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    f.write(chunk)
-        os.replace(temp, path)
-
-    if not melband_is_genuine(path):
-        print("警告：去人聲模型的大小、SHA256 或內容跟官方不一樣，請不要使用！刪掉後再執行一次 setup.bat")
-        print("檔案位置：" + path)
-        sys.exit(1)
+        if not download_file(MELBAND_MODEL_URL, path, melband_is_genuine):
+            say("The vocal separation model is required. Run setup.bat again later.",
+                "去人聲模型一定要有。請晚一點再執行一次 setup.bat")
+            sys.exit(1)
     print("去人聲模型檢查完成：大小、SHA256 都跟官方一樣，裡面只有權重。")
 
 
@@ -184,29 +275,31 @@ def mms_is_genuine(path):
 
 
 def download_mms():
-    """認音節模型 MMS：直接從 Meta 官方網址下載單一檔案（先存成 .part，下載完才改名）"""
-    import requests
+    """
+    認音節模型 MMS：直接從 Meta 官方網址下載單一檔案。
+    下載不了：安裝照樣繼續。沒有這個模型程式也能用（server\\syllable_model.py 的 is_available），
+    只是字幕每個字的時間用猜的；之後再執行一次 setup.bat 會補下載
+    """
     from server.config import MMS_MODEL_DIR, MMS_MODEL_NAME, MMS_MODEL_URL
 
     path = os.path.join(MMS_MODEL_DIR, MMS_MODEL_NAME)
     if os.path.exists(path):
         print("認音節模型已經在電腦裡了，檢查中…")
+        if not mms_is_genuine(path):
+            print("警告：認音節模型的大小或指紋跟官方不一樣，請不要使用！刪掉後再執行一次 setup.bat")
+            print("檔案位置：" + path)
+            sys.exit(1)
     else:
         print("下載認音節模型（約 1.26GB）：" + MMS_MODEL_URL)
-        os.makedirs(MMS_MODEL_DIR, exist_ok=True)
-        temp = path + ".part"
-        with requests.get(MMS_MODEL_URL, stream=True, timeout=60) as response:
-            response.raise_for_status()
-            with open(temp, "wb") as f:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    f.write(chunk)
-        os.replace(temp, path)
-
-    if not mms_is_genuine(path):
-        print("警告：認音節模型的大小或指紋跟官方不一樣，請不要使用！刪掉後再執行一次 setup.bat")
-        print("檔案位置：" + path)
-        sys.exit(1)
+        if not download_file(MMS_MODEL_URL, path, mms_is_genuine):
+            say("Setup continues without the syllable model. You can still sing and get scored; "
+                "only the word-by-word lyric fill is estimated and less exact.",
+                "安裝會繼續，先不裝認音節模型。一樣可以唱歌、評分，只是字幕每個字填色的時間用猜的，比較不準。")
+            say("To get it later: run setup.bat again. Songs you already added need \"Reprocess\" to use it.",
+                "之後要補：再執行一次 setup.bat。已經加過的歌要按「重新處理」才會用到。")
+            return
     print("認音節模型檢查完成：大小、指紋、SHA256 都跟官方一樣。")
 
 
-main()
+if __name__ == "__main__":
+    main()

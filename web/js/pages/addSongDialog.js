@@ -11,7 +11,7 @@ import * as api from '../api.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
 import { loadSettings, saveSettings } from '../settings.js';
-import { escapeHtml, formatTime, helpTip, openDialog, showToast } from '../ui.js';
+import { escapeHtml, formatTime, helpTip, isChoosingWord, openDialog, showToast } from '../ui.js';
 import { LyricsPicker } from './lyricsPicker.js';
 import { fillNames } from './songNames.js';
 
@@ -330,9 +330,13 @@ export function openAddSongDialog(systemInfo, onDone) {
         }
       }, 0);
     });
+    // 在網址欄按 Enter = 按「讀取」；輸入法正在選字的 Enter 不算
     urlInput.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
+        if (isChoosingWord(event)) {
+          return;
+        }
         box.querySelector('#youtube-read').click();
       }
     });

@@ -33,7 +33,7 @@
 import * as api from '../api.js';
 import { t } from '../i18n.js';
 import { icon } from '../icons.js';
-import { escapeHtml, formatTime, helpTip } from '../ui.js';
+import { escapeHtml, formatTime, helpTip, isChoosingWord } from '../ui.js';
 import { LyricsListen } from './lyricsListen.js';
 import {
   checkDetail, checkProblem, chip, choiceRowHtml, isRecommended, lyricLines, resultsHtml, sortByMatch, sortResults,
@@ -128,10 +128,13 @@ export class LyricsPicker {
         picker.edited = true;
         picker.markStale();
       });
-      // 在搜尋欄按 Enter = 按「搜尋」（不要觸發對話方塊的其他按鈕）
+      // 在搜尋欄按 Enter = 按「搜尋」（不要觸發對話方塊的其他按鈕）；輸入法正在選字的 Enter 不算
       input.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
           event.preventDefault();
+          if (isChoosingWord(event)) {
+            return;
+          }
           picker.search(true);
         }
       });

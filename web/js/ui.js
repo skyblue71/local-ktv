@@ -110,6 +110,15 @@ export function closeAllDialogs() {
   }
 }
 
+// 這一下按鍵是不是輸入法正在選字
+//   中文、日文輸入法用 Enter 確認選的字，這時候的 Enter 不能當成「送出」「搜尋」，不然字還沒打完就送出去了。
+//   輸入框自己處理 Enter 的地方都要先問這個。
+//   isComposing：瀏覽器說正在選字；
+//   keyCode 229：有些瀏覽器（Safari）確認選字的那一下 Enter，isComposing 已經變回 false，只剩這個看得出來
+export function isChoosingWord(event) {
+  return event.isComposing || event.keyCode === 229;
+}
+
 // 問使用者「確定嗎？」
 export function confirmAction(message) {
   return window.confirm(message);

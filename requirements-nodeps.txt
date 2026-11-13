@@ -1,0 +1,6 @@
+# 只裝套件本身、不裝它要的其他套件（安裝指令加 --no-deps，setup.bat 會處理）
+# 下載來源：https://pypi.org （Python 官方套件庫）
+
+# CREPE 聽音高的模型檔（assets\full.pth）在這個套件裡，程式只用這個檔案（server\crepe_runner.py），
+# 不載入 torchcrepe 本身。它要的 librosa 會再帶進 numba、scikit-learn 等十幾個套件（約 200MB），都用不到
+torchcrepe==0.0.24

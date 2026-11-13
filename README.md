@@ -38,6 +38,18 @@
 
 建議戴耳機唱，不然喇叭的伴奏會被麥克風收進去，評分會不準。
 
+### 會裝哪些套件
+
+全部裝在專案裡的 `.venv`，不會動到電腦裡的 Python。只裝程式會用到的：
+
+| 清單 | 裝什麼 |
+|---|---|
+| PyTorch 官方網站 | `torch`、`torchaudio`（顯示卡版，佔下載量的大部分） |
+| `requirements.txt` | 網頁伺服器 FastAPI、Uvicorn；聲音處理 NumPy、SciPy、soundfile、FFmpeg；中日文讀音 pykakasi、pypinyin、fugashi（字典 unidic-lite）；去人聲要的 einops、rotary-embedding-torch；從 YouTube 加歌的 yt-dlp |
+| `requirements-nodeps.txt` | `torchcrepe`：只用它附的 CREPE 模型檔，所以只裝它本身，不裝它要的十幾個其他套件 |
+
+版本都固定在清單裡，來源都是 PyPI 或 PyTorch 官方。
+
 > 從 YouTube 加歌：請只用在你有權利下載的影片。
 
 ## 用到的 AI
@@ -49,7 +61,7 @@
 | 分人聲和伴奏 | Mel-Band RoFormer（Kimberley Jensen 的人聲模型） | 安裝時從 Hugging Face 下載模型檔 | 模型：https://huggingface.co/KimberleyJSN/melbandroformer<br>程式：https://github.com/KimberleyJensen/Mel-Band-Roformer-Vocal-Model （原本來自 https://github.com/lucidrains/BS-RoFormer ） |
 | 聽音高、寫評分條 | CREPE（torchcrepe 附的模型） | 用 pip 安裝 torchcrepe，模型檔包在套件裡 | https://github.com/maxrmorrison/torchcrepe |
 | 聽每個字在第幾秒 | Meta MMS 強制對齊模型（torchaudio 的 MMS_FA） | 安裝時從 Meta 的官方網址下載模型檔 | https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt |
-| 分人聲的另一個選擇（比較輕） | Demucs `htdemucs` | 預設不下載；改用它時才從 Hugging Face 下載 | https://huggingface.co/adefossez/HTDemucs |
+| 分人聲的另一個選擇（比較輕） | Demucs `htdemucs` | 預設不裝。要用的話先裝 `demucs` 套件（步驟寫在 `server\config.py`），模型從 Hugging Face 下載 | https://huggingface.co/adefossez/HTDemucs |
 
 其他：從 YouTube 加歌用 [yt-dlp](https://github.com/yt-dlp/yt-dlp)，歌詞來自 [LRCLIB](https://lrclib.net)。
 

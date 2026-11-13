@@ -54,36 +54,13 @@ def detect_pitch_crepe(audio):
     return crepe_runner.detect(audio, HOP, LOWEST_HZ, HIGHEST_HZ)
 
 
-def detect_pitch_pyin(audio):
-    """沒有 torchcrepe 時的備用方案：librosa 的 pYIN（比較慢）"""
-    import librosa
-
-    frequency, voiced_flag, voiced_prob = librosa.pyin(
-        audio,
-        fmin=LOWEST_HZ,
-        fmax=HIGHEST_HZ,
-        sr=SAMPLE_RATE,
-        frame_length=1024,
-        hop_length=HOP,
-        center=True,
-    )
-    frequency = np.nan_to_num(frequency, nan=0.0)
-    return frequency, voiced_prob
-
-
 def detect_pitch(audio):
+    """回傳 (頻率陣列, 信心度陣列, 用的是哪一個 AI)。CREPE 跑不起來就停下來（沒有備用方案）"""
     try:
         frequency, confidence = detect_pitch_crepe(audio)
-        return frequency, confidence, "crepe"
     except Exception as error:
-        print("CREPE 無法使用，改用 pYIN：", error)
-        try:
-            frequency, confidence = detect_pitch_pyin(audio)
-        except Exception as pyin_error:
-            # pYIN 也要靠 numba，被 Windows 擋的話兩個都不能用，回報 CREPE 原本的錯誤
-            print("pYIN 也無法使用：", pyin_error)
-            raise RuntimeError("音高辨識失敗：" + str(error))
-        return frequency, confidence, "pyin"
+        raise RuntimeError("音高辨識失敗：" + str(error))
+    return frequency, confidence, "crepe"
 
 
 # ---------- 第 3 步：判斷哪裡有在唱 ----------

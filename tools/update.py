@@ -12,7 +12,8 @@
   4. 都一樣：已經是最新版，記下編號
   5. 有不一樣：列出來，問 Y / N。按 Y 才會動這個資料夾
   6. 更新：被換掉的舊檔案先備份到 data\\update_backup\\時間\\，再放上新的
-  7. requirements.txt 有變：用 pip 安裝套件（只裝在這個程式的 .venv 裡；還沒安裝環境就不裝，留給 start.bat）
+  7. 套件清單（requirements.txt、requirements-nodeps.txt）有變：用 pip 安裝套件
+     （只裝在這個程式的 .venv 裡；還沒安裝環境就不裝，留給 start.bat）
 不會動的：data（歌、分數）、.venv、最新版裡沒有的檔案。
 這個資料夾如果是 Git 管理的（有 .git）：不動檔案（換掉檔案的話，之後用 Git 更新會打架）。
   GitHub 上有這個資料夾還沒抓過的新版，就提醒一句「請執行 git pull」（remind_git）。
@@ -189,10 +190,29 @@ def installed():
     return running.startswith(os.path.abspath(venv) + os.sep)
 
 
+# 套件清單：(檔名, pip 要多加的參數)。跟 setup.bat 裝的一樣
+PACKAGE_LISTS = [
+    ("requirements.txt", []),
+    ("requirements-nodeps.txt", ["--no-deps"]),   # 只裝套件本身，不裝它要的其他套件
+]
+
+
 def install_packages():
-    """照 requirements.txt 安裝套件，回傳 True = 成功"""
-    result = subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], cwd=PROJECT)
-    return result.returncode == 0
+    """照套件清單安裝套件，回傳 True = 成功"""
+    for name, extra in PACKAGE_LISTS:
+        command = [sys.executable, "-m", "pip", "install"] + extra + ["-r", name]
+        result = subprocess.run(command, cwd=PROJECT)
+        if result.returncode != 0:
+            return False
+    return True
+
+
+def package_list_changed(changed):
+    """更新的檔案裡有沒有套件清單"""
+    for name, _ in PACKAGE_LISTS:
+        if name in changed:
+            return True
+    return False
 
 
 def fetch_latest(version, work):
@@ -240,7 +260,7 @@ def apply_update(new_folder, changed):
     if not installed():
         # 還沒安裝環境（例如只下載了 update.bat）：套件留給 start.bat 第一次啟動時裝，不動電腦裡的 Python
         return True
-    if "requirements.txt" in changed:
+    if package_list_changed(changed):
         say("The package list changed. Installing packages with pip (source: https://pypi.org)...",
             "套件清單有變，正在用 pip 安裝套件（來源：https://pypi.org）…")
         if not install_packages():

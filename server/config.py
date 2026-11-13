@@ -19,7 +19,9 @@ USER_AGENT = "LocalKaraoke/1.0"
 
 # AI 分人聲用哪一個（Mel-Band RoFormer 分得比 Demucs 乾淨）
 #   "mel_band_roformer"：Kim 的 Mel-Band RoFormer（預設）
-#   "demucs"           ：比較輕的 Demucs（想換就改這裡，再執行一次 setup.bat 下載它的模型）
+#   "demucs"           ：比較輕的 Demucs，預設沒有裝。想換的話：
+#                        1. 裝套件：.venv\Scripts\python -m pip install demucs==4.1.0（來源 https://pypi.org ）
+#                        2. 改這裡  3. 再執行一次 setup.bat 下載它的模型
 SEPARATOR = "mel_band_roformer"
 
 # Mel-Band RoFormer 的模型檔：作者 Kimberley Jensen 本人放在 Hugging Face 的

@@ -38,6 +38,18 @@ Singing does not need a graphics card. Scoring runs in the browser.
 
 Headphones are recommended. Otherwise the microphone picks up the backing track from the speakers and scoring is less accurate.
 
+### Packages it installs
+
+Everything goes into `.venv` inside the project. Your system Python is not changed. Only what the app uses is installed:
+
+| List | What it installs |
+|---|---|
+| PyTorch website | `torch`, `torchaudio` (GPU build, most of the download) |
+| `requirements.txt` | Web server FastAPI, Uvicorn; audio NumPy, SciPy, soundfile, FFmpeg; Chinese and Japanese readings pykakasi, pypinyin, fugashi (dictionary unidic-lite); einops and rotary-embedding-torch for vocal separation; yt-dlp for adding songs from YouTube |
+| `requirements-nodeps.txt` | `torchcrepe`: only its bundled CREPE model file is used, so the package is installed without the dozen or so packages it would pull in |
+
+All versions are pinned in the lists. Everything comes from PyPI or the official PyTorch site.
+
 > Adding songs from YouTube: only use it for videos you have the right to download.
 
 ## AI models used
@@ -49,7 +61,7 @@ Each one runs once when a song is added. The results are saved in that song's fo
 | Separates vocals and backing track | Mel-Band RoFormer (vocal model by Kimberley Jensen) | Model file downloaded from Hugging Face during setup | Model: https://huggingface.co/KimberleyJSN/melbandroformer<br>Code: https://github.com/KimberleyJensen/Mel-Band-Roformer-Vocal-Model (originally from https://github.com/lucidrains/BS-RoFormer ) |
 | Detects pitch and writes the pitch bars | CREPE (the model shipped with torchcrepe) | Installed with pip as torchcrepe. The model file is inside the package | https://github.com/maxrmorrison/torchcrepe |
 | Finds when each word is sung | Meta MMS forced alignment model (MMS_FA in torchaudio) | Model file downloaded from Meta's official URL during setup | https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt |
-| Another option for vocal separation (lighter) | Demucs `htdemucs` | Not downloaded by default. Downloaded from Hugging Face only if you switch to it | https://huggingface.co/adefossez/HTDemucs |
+| Another option for vocal separation (lighter) | Demucs `htdemucs` | Not installed by default. To use it, install the `demucs` package first (steps in `server\config.py`); the model comes from Hugging Face | https://huggingface.co/adefossez/HTDemucs |
 
 Also: [yt-dlp](https://github.com/yt-dlp/yt-dlp) for adding songs from YouTube, and lyrics from [LRCLIB](https://lrclib.net).
 

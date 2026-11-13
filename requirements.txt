@@ -1,8 +1,9 @@
-# 本機KTV 需要的 Python 套件（版本固定）
+# 本機KTV 需要的 Python 套件（版本固定）。只放程式真的會用到的
 # 下載來源：https://pypi.org （Python 官方套件庫）
 #
-# 注意：PyTorch 要另外從 PyTorch 官方網站安裝（setup.bat 會處理）：
-#   https://download.pytorch.org/whl/cu128
+# 另外兩份（setup.bat 會處理）：
+#   PyTorch：從 PyTorch 官方網站裝 https://download.pytorch.org/whl/cu128
+#   requirements-nodeps.txt：只裝套件本身、不裝它要的其他套件（用 --no-deps）
 
 # 網頁伺服器
 fastapi==0.162.0
@@ -23,22 +24,16 @@ pypinyin==0.55.0
 fugashi==1.5.2
 unidic-lite==1.0.8
 
-# AI：去人聲、音高辨識
-# 去人聲 Mel-Band RoFormer 要用的（rotary-embedding-torch 0.3.5 是模型作者指定的版本，只有兩個純 Python 檔）
+# AI：去人聲 Mel-Band RoFormer 要用的（rotary-embedding-torch 0.3.5 是模型作者指定的版本，只有兩個純 Python 檔）
 einops==0.8.2
 rotary-embedding-torch==0.3.5
-# 另一個可以選的去人聲 Demucs（config.py 的 SEPARATOR）
-demucs==4.1.0
-torchcrepe==0.0.24
-librosa==1.0.0
+# 另一個去人聲 Demucs 預設不裝（config.py 的 SEPARATOR 寫怎麼換）
 
-# 從 YouTube 加歌：官方推薦組合 yt-dlp[default] 裡的套件，但「不裝 pycryptodomex」
-#   原因：Windows 的「智慧型應用程式控制」會擋它的檔案。
-#   YouTube 用不到它（它是解某些加密影片用的），yt-dlp 沒有它也能正常下載。
+# 從 YouTube 加歌：官方推薦組合 yt-dlp[default] 裡 YouTube 用得到的
+#   不裝 pycryptodomex：Windows 的「智慧型應用程式控制」會擋它的檔案；它是解某些加密影片用的，YouTube 用不到
+#   不裝 brotli、websockets：YouTube 用不到（websockets 只有 niconico、TwitCasting、FC2 的直播用）
 # YouTube 常常改版，下載失敗時可以更新：.venv\Scripts\python -m pip install -U yt-dlp yt-dlp-ejs
 yt-dlp==2026.10.26
 yt-dlp-ejs==0.8.0
-brotli==1.2.1
 certifi==2026.10.23
 urllib3==2.8.0
-websockets==17.4

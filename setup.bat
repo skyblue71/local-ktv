@@ -10,7 +10,7 @@ rem 電腦裡沒有這些版本、但有別的夠新的 Python 時，會先用�
 set "TESTED_PYTHON=3.12"
 
 rem 最低要的 Python 版本：requirements.txt 裡的套件有幾個比這版舊就裝不起來
-rem （numpy、scipy、librosa）。換套件版本的時候，這裡要跟著看一下
+rem （numpy、scipy）。換套件版本的時候，這裡要跟著看一下
 set "MIN_PYTHON=3.12"
 
 echo ==========================================
@@ -28,7 +28,7 @@ echo   3. 下載去人聲模型、認音節模型各一次（之後程式就不�
 echo.
 echo Download sources (all official) / 下載來源（都是官方網站）：
 echo   PyTorch: https://download.pytorch.org/whl/cu128
-echo   Other packages / 其他套件: https://pypi.org  (requirements.txt)
+echo   Other packages / 其他套件: https://pypi.org  (requirements.txt, requirements-nodeps.txt)
 echo   Vocal separation model / 去人聲模型 Mel-Band RoFormer, 913 MB: https://huggingface.co/KimberleyJSN/melbandroformer
 echo   Syllable model / 認音節模型 MMS, 1.26 GB: https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt
 echo.
@@ -111,6 +111,9 @@ if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu128
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m pip install -r requirements.txt
+if errorlevel 1 goto failed
+rem 這份只裝套件本身、不裝它要的其他套件（原因寫在檔案裡）
+".venv\Scripts\python.exe" -m pip install --no-deps -r requirements-nodeps.txt
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" tools\download_model.py
 if errorlevel 1 goto failed

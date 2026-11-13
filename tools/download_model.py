@@ -4,7 +4,7 @@
      - Mel-Band RoFormer（預設，約 913MB）：https://huggingface.co/KimberleyJSN/melbandroformer （模型作者本人帳號）
        下載後比對大小、SHA256（Hugging Face 網頁公布的），再檢查檔案裡只有權重、沒有藏程式。
      - HTDemucs（另一個選擇，約 80MB）：https://huggingface.co/adefossez/HTDemucs （demucs 原作者本人帳號）
-       下載後比對 SHA256，確定跟官方公布的一樣。
+       下載後比對 SHA256，確定跟官方公布的一樣。demucs 套件預設不裝，沒裝會說明怎麼裝。
   2. 認音節模型 MMS（約 1.26GB）：https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt
      （Meta 官方伺服器，torchaudio 內建的 MMS_FA 用的就是這個檔案）
      下載後比對大小、伺服器公布的指紋（ETag）和 SHA256（網址、指紋寫在 server\\config.py）。
@@ -22,6 +22,7 @@
 執行方式：setup.bat 會自動執行，不用自己跑。
 """
 import hashlib
+import importlib.util
 import os
 import pickletools
 import sys
@@ -73,6 +74,13 @@ def main():
 
 
 def download_demucs():
+    if importlib.util.find_spec("demucs") is None:
+        # 預設不裝 demucs（requirements.txt 沒有它），要用的人自己裝
+        say("SEPARATOR in server\\config.py is \"demucs\", but demucs is not installed. Install it first:",
+            "server\\config.py 的 SEPARATOR 是 \"demucs\"，但是沒有裝 demucs。請先安裝：")
+        print("  .venv\\Scripts\\python -m pip install demucs==4.1.0")
+        say("Then run setup.bat again.", "然後再執行一次 setup.bat")
+        sys.exit(1)
     if find_in_cache(CONFIG_FILE) and find_in_cache(WEIGHTS_FILE):
         print("去人聲模型已經在電腦裡了，不用下載。")
     else:

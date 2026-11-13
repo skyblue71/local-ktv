@@ -4,16 +4,18 @@
 
 檢查的項目（都用程式裡本來就有的數字）：
   1. 沒有字在填色的評分條：這條評分條的時間裡，沒有任何一個字正在填色
-     （在一句的第一個字之前＝句首前，在最後一個字之後＝字填完了還有評分條）
-     評分條只放在字的時間裡，所以這一項應該一直是 0（不是 0 就是程式哪裡對不上了）
+     （在一句的第一個字之前＝句首前，在最後一個字之後＝字填完了還有評分條，或兩個字中間）
+     評分條照句子的時間放、字的填色照字的時間，所以字的時間算錯的地方會有幾條（填色可能不準的地方）
   2. 猜的字從長音中間開始：AI 沒把握、照音符猜的句子裡，字的開始落在一個長音
      （syllable_aligner 的 HOLD_NOTE）中間（離頭尾 HOLD_EDGE 以上）→ 填色多半猜錯了
      （AI 算的句子不看：同一個音高連唱兩個字，AI 聽得到換字，是正常的）
   3. AI 聽不懂的句子：MMS 沒把握（< MIN_SCORE），字的時間是照音符猜的
   4. 有歌詞、沒評分條：整句一條評分條都沒有（字幕可能放錯地方、或原唱那裡真的沒聲音）
-  5. 沒歌詞、有人唱：沒有字在唱的地方，原唱有聲音（瀏覽器的耳朵聽得到、而且比歌聲小不到你設的「清掉小聲雜音」dB）
+  5. 沒歌詞、有人唱：句子外面（沒有句子在唱的地方），原唱有聲音（瀏覽器的耳朵聽得到、而且比歌聲小不到你設的「清掉小聲雜音」dB）
      → 可能是歌詞檔漏了句子、和聲、MV 劇情，或分人聲沒分乾淨
   6. 字擠太快：一句平均每個音節不到 MIN_SING_SYLLABLE 秒（一秒唱不了那麼多字）
+  7. 句子裡有人唱、沒評分條：句子的時間裡，原唱有聲音（瀏覽器的耳朵聽得到、比歌聲小不到「清掉小聲雜音」dB），
+     卻沒有評分條的地方（連續 SHORTEST 以上才算）
   另外列每首歌填色最久的 3 個字（只是參考，不算問題）
 
 執行方式（在專案資料夾底下，start.bat 開著也沒關係；只讀資料，不改任何歌）：
@@ -46,6 +48,7 @@ ITEMS = [
     ("no_bars", "有歌詞、沒評分條", "句"),
     ("no_lyrics", "沒歌詞、有人唱", "秒"),
     ("crammed", "字擠太快", "句"),
+    ("unbarred", "句子裡有人唱、沒評分條", "秒"),
 ]
 
 
@@ -177,7 +180,7 @@ def check_song(meta):
 
     # 5. 沒歌詞、有人唱：連在一起（中間沒停）的音算一段
     singing = frames_median(pitch.get("loudness"), hop, [(bar["s"], bar["e"]) for bar in bars])
-    ranges = game_bars.word_ranges(lines)
+    ranges = game_bars.line_ranges(lines)
     runs = []
     for note in notes:
         if note["e"] <= trim_start or note["s"] >= trim_end:
@@ -218,6 +221,38 @@ def check_song(meta):
         if syllables > 0 and length / syllables < MIN_SING_SYLLABLE:
             found["crammed"].append((line["start"], "%s %d 個音節擠在 %.2f 秒｜%s" % (
                 clock(line["start"]), syllables, length, line["text"])))
+
+    # 7. 句子裡有人唱、沒評分條（歌聲多大聲照 AI 寫的音符算，跟評分條怎麼放無關，改前改後可以比）
+    heard = pitch.get("heard")
+    loudness = pitch.get("loudness")
+    voice = frames_median(loudness, hop, [(note["s"], note["e"]) for note in notes])
+    if heard and loudness and voice is not None:
+        size = min(len(heard), len(loudness))
+        inside = [False] * size
+        for line in lyrics["lines"]:
+            if sung(line.get("tokens", [])):
+                first = max(0, int(max(line["start"], trim_start) / hop))
+                last = min(size, int(min(line["end"], trim_end) / hop))
+                for index in range(first, last):
+                    inside[index] = True
+        for bar in bars:
+            for index in range(max(0, int(bar["s"] / hop)), min(size, int(bar["e"] / hop))):
+                inside[index] = False
+        begin = None
+        for index in range(size + 1):
+            loud_here = index < size and inside[index] and loudness[index] >= voice - game_bars.DEFAULT_QUIET_DB
+            if loud_here and begin is None:
+                begin = index
+            if not loud_here and begin is not None:
+                start, end = begin * hop, index * hop
+                heard_frames = sum(1 for k in range(begin, index) if heard[k] != 0)
+                frames = index - begin
+                begin = None
+                # 瀏覽器的耳朵一半以上的時間聽得到音高（跟補評分條 fill_missed 同一個標準）
+                if end - start >= game_bars.SHORTEST and heard_frames >= frames * 0.5:
+                    line = owner_line({"s": start, "e": end}, lyrics["lines"])
+                    found["unbarred"].append((start, "%s～%s（%.2f 秒）｜%s" % (
+                        clock(start), clock(end), end - start, line["text"] if line else ""), end - start))
 
     # 參考：填色最久的 3 個字
     longest = []

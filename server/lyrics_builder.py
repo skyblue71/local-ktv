@@ -7,8 +7,8 @@ LRC 只告訴我們每一句「大概什麼時候開始」，
 做法：
   1. 這份歌詞大概在哪裡：整首固定早／晚（estimate_shift）、MV 插了劇情要整段搬（song_alignment.py）
   2. 每個字從幾秒唱到幾秒：word_timeline.py（整首一次對齊 + 照歌聲修正）
-  3. 句子的時間 = 第一個字開始 ～ 最後一個字唱完；評分條也只放在字的時間裡（web\\js\\game\\lyricNotes.js）
-  所以字幕、句子、評分條都照同一個時間，不會各算各的。
+  3. 句子的時間 = 第一個字開始 ～ 最後一個字唱完；評分條只放在句子的時間裡（web\\js\\game\\lyricNotes.js）
+  每個字的時間只管字的填色：字的時間算錯，填色會早一點晚一點，但不會少評分條。
 """
 import re
 
@@ -232,7 +232,7 @@ def second_to_first(together):
 #   這裡只「量」它比歌聲小幾 dB，記在 lyrics.json 的 "quiet"（每段 {s, e, db, line, cut}），不在這裡刪
 #   要不要清掉，由你在「設定 → 清掉小聲雜音」決定（web\js\game\quietParts.js；預設在 web\js\settings.js）
 #   所以改數字不用重新處理歌曲
-#   （句首的不用量：評分條只放在字的時間裡，第一個字開始前的聲音本來就不會有評分條）
+#   （句首的不用量：評分條只放在句子的時間裡，句子從第一個字開始，之前的聲音本來就不會有評分條）
 
 def median_loudness(loudness, hop, pieces):
     """這幾段時間（[[開始, 結束], ...]）的音量：每一格 dB 的中位數；沒有資料回傳 None"""

@@ -133,7 +133,7 @@ export async function enter(app, songId, query) {
     // 要唱的音符：
     //   你修過譜（修譜頁）→ 用你修的譜，你畫的就算
     //   沒修過 → AI 的譜：
-    //     1. 只有字在唱的時候（前奏、間奏、MV 劇情都不算），跟字幕同一個時間 → lyricNotes.js
+    //     1. 只有句子在唱的時候（前奏、間奏、MV 劇情都不算），跟字幕的句子同一個時間 → lyricNotes.js
     //     2. 原唱自己都聽不太到的音（殘留的和聲）評分器會拿掉 → scorer.js 的 UNHEARD_LIMIT
     //     3. 評分條照字切開，一個字（一拍）一條 → syllableBars.js
     //   都只算裁切範圍內的

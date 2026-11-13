@@ -1,10 +1,10 @@
-// 哪些音符要評分：**只有字在唱的時候**（原則：歌詞本來就應該是對的，有歌詞的地方才唱、才評分）
+// 哪些音符要評分：**只有句子在唱的時候**（原則：一句歌詞的時間裡，原唱有在唱，就有評分條）
 //
-// 每個字從幾秒唱到幾秒，是字幕程式算好的（server\word_timeline.py：AI 聽字、照歌聲修正）。
-// 音符只留在這些時間裡面的部分，超出去的剪掉，所以：
-//   - 前奏、間奏、MV 劇情（說話、引擎聲…）不會有評分條
-//   - 不會「有評分條、卻沒有字在填色」，也不會「字都填完了還有評分條」：評分條跟字幕用同一個時間
-// 字的時間不對的話，評分條也會跟著不對：到「修譜」拖那個字，或到「編輯歌詞」改。
+// 每一句從幾秒唱到幾秒，是字幕程式算好的（server\lyrics_builder.py；「歌詞時間」選照歌詞檔或自動對齊）。
+// 音符只留在這些時間裡面的部分，超出去的剪掉，所以前奏、間奏、MV 劇情（說話、引擎聲…）不會有評分條。
+// 句子裡每個字幾秒只管字的填色，不管有沒有評分條：字的時間算錯，評分條也不會少
+//   （算錯的地方會有一小段「評分條在跑、字還沒填色」）。
+// 句子的時間不對的話，評分條也會跟著不對：到「編輯歌詞」改，或到「修譜」修評分條。
 // 句尾很小聲的聲音（回音、換氣、子音尾巴，例如「fears」最後的 s）：
 //   照你的設定挑出來的段落在 lyrics.quiet（要先經過 quietParts.js 的 applyQuietSetting），音符落在那裡面的部分也剪掉
 // 剪剩的一小段短於 SHORTEST 就不要（太短的碎音）
@@ -13,14 +13,23 @@
 
 export const SHORTEST = 0.15;    // 剪剩的一小段短於這個就不要（跟 server\pitch_analyzer.py 的 MIN_NOTE 一樣：太短的碎音）
 
-// 每個字的時間 [開始, 結束]（標點符號不算），重疊、連在一起的合成一段（兩句一起唱的時候會重疊）
-function wordRanges(lines) {
+// 有字要唱的句子（只有標點符號的不算）
+function hasSungWord(line) {
+  for (const token of line.tokens || []) {
+    if (token.syl > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// 每一句的時間 [開始, 結束]，重疊、連在一起的合成一段（兩句一起唱的時候會重疊）
+// 評分條、補評分條（twoEars.js、talkBars.js）都用這個時間
+export function lineRanges(lines) {
   const ranges = [];
   for (const line of lines) {
-    for (const token of line.tokens || []) {
-      if (token.syl > 0 && token.end > token.start) {
-        ranges.push([token.start, token.end]);
-      }
+    if (hasSungWord(line) && line.end > line.start) {
+      ranges.push([line.start, line.end]);
     }
   }
   ranges.sort(function (a, b) {
@@ -60,7 +69,7 @@ function cutOutQuiet(note, quiet) {
   return pieces;
 }
 
-// 只留落在字的時間裡的部分
+// 只留落在句子的時間裡的部分
 function keepInside(piece, ranges) {
   const result = [];
   for (const range of ranges) {
@@ -78,7 +87,7 @@ export function notesInLyrics(notes, lyrics) {
     return notes;
   }
   const quiet = lyrics.quiet || [];
-  const ranges = wordRanges(lyrics.lines);
+  const ranges = lineRanges(lyrics.lines);
   const result = [];
   for (const note of notes) {
     for (const piece of cutOutQuiet(note, quiet)) {

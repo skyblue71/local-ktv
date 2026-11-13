@@ -3,9 +3,9 @@
 
 唱歌畫面的做法（web\\js\\game 資料夾）：
   1. quietParts.js 的 applyQuietSetting：照你的設定（清掉小聲雜音 quietDb）挑出要清的段落，句尾清掉的那一句提早結束
-  2. lyricNotes.js 的 notesInLyrics：只留字在唱的時間（每個字開始～結束）裡的部分，落在要清的段落裡的部分剪掉
+  2. lyricNotes.js 的 notesInLyrics：只留句子在唱的時間（每一句開始～結束）裡的部分，落在要清的段落裡的部分剪掉
   3. scorer.js 的 isUnheardNote：瀏覽器的耳朵連原唱都聽不太到的音，不顯示
-  4. talkBars.js 的 addTalkBars：有字、沒有評分條的地方（講話、rap）補上只看有沒有出聲的評分條
+  4. talkBars.js 的 addTalkBars：句子在唱、沒有評分條的地方（講話、rap）補上只看有沒有出聲的評分條
   5. lineEnds.js 的 endLinesAtLastBar：一句最後一條評分條結束，這一句就算唱完（句子和字提早結束）
   6. trimRange.js 的 notesInRange：只留裁切範圍裡的
   （syllableBars.js 照字切開評分條，只是把一條切成幾條，健檢不用）
@@ -138,7 +138,7 @@ def quiet_stretches(lines, notes, loudness, quiet_db):
 
 def fill_missed(notes, pitch, lines, quiet_db):
     """
-    跟 twoEars.js 的 fillMissed 一樣：字正在唱的時間裡，AI 沒寫音符、聲音不是小聲雜音、
+    跟 twoEars.js 的 fillMissed 一樣：句子正在唱的時間裡，AI 沒寫音符、聲音不是小聲雜音、
     瀏覽器的耳朵一半以上聽得到、長到 SHORTEST 以上、緊接著 AI 寫的音符 → 補一個音符。
     回傳補好的音符清單（不改原本的）
     """
@@ -167,13 +167,11 @@ def fill_missed(notes, pitch, lines, quiet_db):
         limit = sung[len(sung) // 2] - quiet_db
 
     inside = [False] * size
-    for line in lines:
-        for token in line.get("tokens", []):
-            if token["syl"] > 0 and token["end"] > token["start"]:
-                first = max(0, js_round(token["start"] / CONTOUR_HOP))
-                last = min(size, js_round(token["end"] / CONTOUR_HOP))
-                for index in range(first, last):
-                    inside[index] = True
+    for range_start, range_end in line_ranges(lines):
+        first = max(0, js_round(range_start / CONTOUR_HOP))
+        last = min(size, js_round(range_end / CONTOUR_HOP))
+        for index in range(first, last):
+            inside[index] = True
 
     added = []
     begin = None
@@ -193,8 +191,7 @@ def fill_missed(notes, pitch, lines, quiet_db):
             if neighbor is None:
                 continue
             values.sort()
-            pitch_value = js_round(values[len(values) // 2] / 10)
-            pitch_value -= 12 * js_round((pitch_value - neighbor["p"]) / 12)
+            pitch_value = near_octave(js_round(values[len(values) // 2] / 10), neighbor["p"])
             added.append({"s": start * CONTOUR_HOP, "e": end * CONTOUR_HOP, "p": pitch_value})
     if len(added) == 0:
         return notes
@@ -210,7 +207,7 @@ def fill_missed(notes, pitch, lines, quiet_db):
 
 def add_talk_bars(bars, pitch, lines, quiet):
     """
-    跟 talkBars.js 的 addTalkBars 一樣：字正在唱、卻沒有評分條的地方（講話、rap、喊叫，量不到穩定的音高），
+    跟 talkBars.js 的 addTalkBars 一樣：句子正在唱、卻沒有評分條的地方（講話、rap、喊叫，量不到穩定的音高），
     補上「只看有沒有出聲」的評分條（"f": 1）。回傳補好的清單（不改原本的）
       bars：已經排好、會顯示的評分條；quiet：要清掉的段落 [(開始, 結束), ...]
     """
@@ -225,12 +222,10 @@ def add_talk_bars(bars, pitch, lines, quiet):
         for index in range(first, last):
             grid[index] = value
 
-    # 字正在唱的格子（要清掉的小聲段落不算）、已經有評分條的格子
+    # 句子正在唱的格子（要清掉的小聲段落不算）、已經有評分條的格子
     inside = [False] * size
-    for line in lines:
-        for token in line.get("tokens", []):
-            if token["syl"] > 0 and token["end"] > token["start"]:
-                mark(inside, token["start"], token["end"], True)
+    for range_start, range_end in line_ranges(lines):
+        mark(inside, range_start, range_end, True)
     for start, end in quiet:
         mark(inside, start, end, False)
     covered = [False] * size
@@ -256,7 +251,7 @@ def add_talk_bars(bars, pitch, lines, quiet):
             pitch_value = js_round(values[len(values) // 2] / 10)
             neighbor = nearest_bar(bars, start * CONTOUR_HOP, end * CONTOUR_HOP)
             if neighbor is not None:
-                pitch_value -= 12 * js_round((pitch_value - neighbor["p"]) / 12)
+                pitch_value = near_octave(pitch_value, neighbor["p"])
             added.append({"s": start * CONTOUR_HOP, "e": end * CONTOUR_HOP, "p": pitch_value, "f": 1})
     if len(added) == 0:
         return bars
@@ -308,19 +303,34 @@ def nearest_bar(bars, start, end):
     return best
 
 
+def near_octave(pitch_value, target):
+    """跟 twoEars.js 的 nearOctave 一樣：音高搬到最接近 target 的八度（往上往下一樣近就不搬）"""
+    moved = pitch_value - 12 * js_round((pitch_value - target) / 12)
+    if abs(moved - target) < abs(pitch_value - target):
+        return moved
+    return pitch_value
+
+
 def js_round(value):
     """跟 JavaScript 的 Math.round 一樣（.5 往上；Python 的 round 是四捨六入五成雙，會差一格）"""
     import math
     return math.floor(value + 0.5)
 
 
-def word_ranges(lines):
-    """每個字的時間 [開始, 結束]（標點不算），重疊、連在一起的合成一段（跟 lyricNotes.js 的 wordRanges 一樣）"""
+def has_sung_word(line):
+    """有字要唱的句子（只有標點符號的不算）"""
+    for token in line.get("tokens", []):
+        if token["syl"] > 0:
+            return True
+    return False
+
+
+def line_ranges(lines):
+    """每一句的時間 [開始, 結束]，重疊、連在一起的合成一段（跟 lyricNotes.js 的 lineRanges 一樣）"""
     ranges = []
     for line in lines:
-        for token in line.get("tokens", []):
-            if token["syl"] > 0 and token["end"] > token["start"]:
-                ranges.append([token["start"], token["end"]])
+        if has_sung_word(line) and line["end"] > line["start"]:
+            ranges.append([line["start"], line["end"]])
     ranges.sort()
     merged = []
     for start, end in ranges:
@@ -389,7 +399,7 @@ def game_bars(lyrics, pitch, meta, chart_notes=None, quiet_db=None, talk_bars=No
         candidates = [dict(note) for note in chart_notes]
     else:
         candidates = []
-        ranges = word_ranges(lines)
+        ranges = line_ranges(lines)
         for note in fill_missed(pitch.get("notes", []), pitch, lines, quiet_db):
             for start, end in cut_out_quiet(note["s"], note["e"], quiet):
                 for range_start, range_end in ranges:

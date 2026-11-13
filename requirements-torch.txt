@@ -1,0 +1,5 @@
+# PyTorch：從 PyTorch 官方網站裝顯示卡版（CUDA 12.8），setup.bat 會處理
+# 下面這一行是告訴 pip 這份清單從哪裡下載
+--index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0
+torchaudio==2.11.0

@@ -2,7 +2,7 @@
 # 下載來源：https://pypi.org （Python 官方套件庫）
 #
 # 另外兩份（setup.bat 會處理）：
-#   PyTorch：從 PyTorch 官方網站裝 https://download.pytorch.org/whl/cu128
+#   requirements-torch.txt：PyTorch，從 PyTorch 官方網站裝 https://download.pytorch.org/whl/cu128
 #   requirements-nodeps.txt：只裝套件本身、不裝它要的其他套件（用 --no-deps）
 
 # 網頁伺服器
@@ -27,7 +27,6 @@ unidic-lite==1.0.8
 # AI：去人聲 Mel-Band RoFormer 要用的（rotary-embedding-torch 0.3.5 是模型作者指定的版本，只有兩個純 Python 檔）
 einops==0.8.2
 rotary-embedding-torch==0.3.5
-# 另一個去人聲 Demucs 預設不裝（config.py 的 SEPARATOR 寫怎麼換）
 
 # 從 YouTube 加歌：官方推薦組合 yt-dlp[default] 裡 YouTube 用得到的
 #   不裝 pycryptodomex：Windows 的「智慧型應用程式控制」會擋它的檔案；它是解某些加密影片用的，YouTube 用不到

@@ -10,7 +10,8 @@ rem 在同一個命令視窗程序裡切成 UTF-8，會把後面中文那幾行�
 rem 所以先切成 UTF-8，再開一個新的命令視窗程序從頭跑這個檔案；新程序一開始就是 UTF-8，讀得正確
 cd /d "%~dp0"
 
-rem 檢查更新：到 GitHub 看有沒有新版，有的話問你要不要更新（tools\update.py）
+rem 更新和整理（tools\update.py）：到 GitHub 看有沒有新版，有的話問你要不要更新；
+rem 再整理 .venv 裡的套件、models 裡的 AI 模型（要刪、要下載都會先問或說明）
 rem 只有這一個檔案也可以用：缺的更新工具會先從 GitHub 下載，其他檔案再由它補齊
 rem 畫面上的訊息每一句都有英文和中文。
 rem 注意：if ( ... ) 括號裡的 echo 不能出現半形的括號，會被當成括號的結尾
@@ -22,16 +23,18 @@ rem 讓中文訊息正常顯示
 set PYTHONIOENCODING=utf-8
 
 echo ==========================================
-echo   Local KTV: check for updates
-echo   本機KTV：檢查更新
+echo   Local KTV: update and tidy up
+echo   本機KTV：更新和整理
 echo ==========================================
 echo Please close Local KTV first (close the start.bat window).
 echo 請先關掉本機KTV（關閉 start.bat 的視窗）。
 echo.
-echo This downloads the latest version from the official GitHub page and compares it with this folder.
-echo Nothing is changed until you press Y.
-echo 會從 GitHub 官方頁面下載最新版，跟這個資料夾比一比。
-echo 你按 Y 之前，什麼都不會改。
+echo 1. Program files: compared with the latest version on the official GitHub page. Nothing is changed until you press Y.
+echo 2. Packages in .venv: the ones this app no longer uses are removed.
+echo 3. AI models in models: missing ones can be downloaded, unused ones removed. You are asked first.
+echo 1. 程式：跟 GitHub 官方頁面上的最新版比一比。你按 Y 之前，什麼都不會改。
+echo 2. 套件（.venv 裡的）：清掉這個程式用不到的。
+echo 3. AI 模型（models 裡的）：少了的可以下載、用不到的可以清掉，都會先問你。
 echo.
 
 rem 用哪個 Python：裝好的虛擬環境優先；還沒安裝就用電腦裡的 Python（更新工具只用 Python 內建的功能）

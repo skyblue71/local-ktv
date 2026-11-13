@@ -9,8 +9,9 @@
 拉長音那個字會被切給好幾個字。MMS 聽得出每個音（ka、yo、wa…）在哪裡。
 （實測一首歌：沒有換字痕跡的長音被切開 24 個 → 7 個）
 
-模型：torchaudio 內建的 MMS_FA，檔案在 config.MMS_MODEL_DIR（安裝時下載，見 tools\\download_model.py）。
-讀檔用 weights_only=True（只讀數字，不執行檔案裡的程式碼），而且只讀電腦裡的檔案、不連網。
+模型：torchaudio 內建的 MMS_FA，檔案在專案資料夾的 models\\mms\\（config.model_path；安裝時下載，見 tools\\download_model.py）。
+讀檔用 weights_only=True（只讀數字，不執行檔案裡的程式碼），而且只讀電腦裡的檔案、不連網
+（檔案不在的話 torchaudio 會自己去下載，所以一定要先用 is_available 確認）。
 """
 import gc
 import os
@@ -19,7 +20,7 @@ import numpy as np
 import soundfile as sf
 
 from server.audio_tools import convert_audio
-from server.config import MMS_MODEL_DIR, MMS_MODEL_NAME
+from server.config import MMS_MODEL_NAME, MMS_MODEL_SIZE, model_path
 
 RATE = 16000                 # MMS 只吃 16000Hz 的聲音
 FRAME_SECONDS = 320 / RATE   # 每一格 0.02 秒（模型每 320 個取樣點輸出一格）
@@ -29,16 +30,18 @@ EMISSION_FILE = "mms_emission.npy"
 
 
 def is_available():
-    """電腦裡有沒有 MMS 模型檔"""
-    return os.path.isfile(os.path.join(MMS_MODEL_DIR, MMS_MODEL_NAME))
+    """電腦裡有沒有 MMS 模型檔（大小跟官方一樣才算）"""
+    path = model_path(MMS_MODEL_NAME)
+    return os.path.isfile(path) and os.path.getsize(path) == MMS_MODEL_SIZE
 
 
 def load_model(device):
     import torch  # noqa: F401（放在這裡：沒用到就不載入）
     from torchaudio.pipelines import MMS_FA
+    path = model_path(MMS_MODEL_NAME)
     model = MMS_FA.get_model(with_star=True, dl_kwargs={
-        "model_dir": MMS_MODEL_DIR,
-        "file_name": MMS_MODEL_NAME,
+        "model_dir": os.path.dirname(path),
+        "file_name": os.path.basename(path),
         "weights_only": True,   # 只讀數字，不執行檔案裡的程式碼
         "progress": False,
     })

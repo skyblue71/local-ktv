@@ -13,6 +13,7 @@ AI 分人聲（Mel-Band RoFormer）：把一首歌拆成「人聲」和「伴奏
 安全：模型檔是 PyTorch 格式，這種格式裡面可以藏程式（木馬），
   所以只用 weights_only=True 讀：只准讀數字（權重），裡面要是有程式就直接拒絕，不會執行。
   （下載時也比對過大小、SHA256，檢查過裡面只有權重：tools\\download_model.py）
+模型檔放在專案資料夾的 models\\mel_band_roformer\\（config.model_path）。
 """
 import os
 
@@ -37,7 +38,13 @@ _model = None
 
 
 def model_path():
-    return os.path.join(config.MELBAND_MODEL_DIR, config.MELBAND_MODEL_NAME)
+    return config.model_path(config.MELBAND_MODEL_NAME)
+
+
+def has_model():
+    """電腦裡有沒有模型檔（大小跟官方一樣才算）"""
+    path = model_path()
+    return os.path.isfile(path) and os.path.getsize(path) == config.MELBAND_MODEL_SIZE
 
 
 def is_available():
@@ -66,10 +73,10 @@ def load_model():
         from server.mel_band_roformer import MelBandRoformer
 
         path = model_path()
-        if not os.path.isfile(path) or os.path.getsize(path) != config.MELBAND_MODEL_SIZE:
+        if not has_model():
             raise RuntimeError(
                 "電腦裡找不到去人聲模型（或檔案不完整）。"
-                "請執行一次 setup.bat（會下載模型一次），再處理一次這首歌。"
+                "請關掉本機KTV、按 update.bat（會問你要不要下載），再處理一次這首歌。"
                 "（應該在：" + path + "）"
             )
         print("載入人聲分離模型…")

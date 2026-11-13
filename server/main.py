@@ -16,7 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from server import (audio_tools, chart_store, cover_tools, job_queue, lyrics_consensus, lyrics_match, lyrics_search,
-                    recording_export, separator, singing_check, song_store, trim, word_store, youtube_import)
+                    recording_export, separator, singing_check, song_store, syllable_model, trim, word_store,
+                    youtube_import)
 from server.config import WEB_DIR
 from server.song_processor import make_lyrics, rebuild_lyrics
 
@@ -123,11 +124,21 @@ class ScoreRecord(BaseModel):
 
 @app.get("/api/system")
 def system_info():
+    """
+    separator：分人聲的套件裝了沒；separatorModel、syllableModel：分人聲、認音節的模型檔在不在
+    （不在的話，網頁在加歌的地方說「按 update.bat 下載」）
+    """
     available = separator.is_available()
     gpu = ""
     if available:
         gpu = separator.get_gpu_name()
-    return {"separator": available, "gpu": gpu, "youtube": youtube_import.is_available()}
+    return {
+        "separator": available,
+        "separatorModel": separator.has_model(),
+        "syllableModel": syllable_model.is_available(),
+        "gpu": gpu,
+        "youtube": youtube_import.is_available(),
+    }
 
 
 # ---------- 歌曲 ----------

@@ -17,7 +17,7 @@ A karaoke app that runs on your own PC and scores your singing. You add the song
 - **Edit it yourself**: drag the pitch bars and the timing of each word with the mouse, with step-by-step undo and redo
 - **Monitor, reverb, recording**: listen again after singing, or download the recording as MP3
 - **Chinese and English interface**: switch in Settings
-- **Updates itself**: when a newer version is out, it asks before it starts. Your songs and scores are not touched. If you used `git clone`, it only reminds you: update with `git pull`
+- **Updates**: when a newer version is out, it says so at startup, and `update.bat` updates it. Your songs and scores are not touched. If you used `git clone`, it only reminds you: update with `git pull`
 
 ## Requirements
 
@@ -38,17 +38,48 @@ Singing does not need a graphics card. Scoring runs in the browser.
 
 Headphones are recommended. Otherwise the microphone picks up the backing track from the speakers and scoring is less accurate.
 
+### What each `.bat` file does
+
+| File | What it does |
+|---|---|
+| `start.bat` | **Starts the app.** This is the only one you normally need. The first run installs everything. It never asks you anything |
+| `update.bat` | **Updates and tidies up**: updates the app, removes packages it no longer uses, downloads missing AI models or removes unused ones. It asks before updating the app or touching AI models |
+| `setup.bat` | Installs the environment. `start.bat` runs it the first time, so you normally don't need it |
+| `檢查連網.bat` | Checks that the app doesn't connect to the internet behind your back. Takes about a minute and doesn't touch your songs |
+
 ### Packages it installs
 
 Everything goes into `.venv` inside the project. Your system Python is not changed. Only what the app uses is installed:
 
 | List | What it installs |
 |---|---|
-| PyTorch website | `torch`, `torchaudio` (GPU build, most of the download) |
+| `requirements-torch.txt` | `torch`, `torchaudio`, GPU build from the official PyTorch site (most of the download) |
 | `requirements.txt` | Web server FastAPI, Uvicorn; audio NumPy, SciPy, soundfile, FFmpeg; Chinese and Japanese readings pykakasi, pypinyin, fugashi (dictionary unidic-lite); einops and rotary-embedding-torch for vocal separation; yt-dlp for adding songs from YouTube |
 | `requirements-nodeps.txt` | `torchcrepe`: only its bundled CREPE model file is used, so the package is installed without the dozen or so packages it would pull in |
 
 All versions are pinned in the lists. Everything comes from PyPI or the official PyTorch site.
+
+### Updating and tidying up
+
+`start.bat` only starts the app. If a newer version exists it just says so and does not ask. Updating and tidying up happen in `update.bat`, which you can run any time:
+
+- **Program files**: compared with the latest version on GitHub, and updated only if you press Y. Changed files are replaced, files dropped in the new version are removed, and the old ones are backed up to `data\update_backup` first. Your songs, scores and any files you put here yourself are left alone.
+- **Packages** (in `.venv`): ones this app no longer uses go to the Recycle Bin, and it lists what was removed. Only packages this app installed are removed. If it can't tell, it asks you first.
+- **AI models** (in `models`, one folder per model): it asks before downloading missing ones, and before moving models the app no longer uses to the Recycle Bin. Anything you put in `models` yourself is left alone.
+- If you used `git clone`: update the app with `git pull`. `update.bat` only tidies up packages and AI models.
+- **Installed before 2026-11-14? Run `update.bat` twice.** The first run uses the old updater, which only copies in the new files. The second run uses the new one, which tidies up packages and AI models and removes old files the new version no longer has.
+
+### Uninstalling
+
+Everything lives in this folder: packages in `.venv`, AI models in `models`, songs and scores in `data`. To remove the app, delete the whole folder.
+
+Older versions (installed before 2026-11-14) kept the AI models outside the folder. They still work after updating and are not downloaded again. To clean up completely, you can delete these yourself:
+
+- `C:\Users\<your name>\.cache\mel_band_roformer\`
+- `C:\Users\<your name>\.cache\torch\hub\checkpoints\mms_fa_ctc_alignment_mling_uroman.pt`
+- `C:\Users\<your name>\AppData\Local\pip\cache\` (download cache left by pip during setup)
+
+If you delete the models, run `update.bat` and it asks whether to download them again.
 
 > Adding songs from YouTube: only use it for videos you have the right to download.
 
@@ -61,7 +92,6 @@ Each one runs once when a song is added. The results are saved in that song's fo
 | Separates vocals and backing track | Mel-Band RoFormer (vocal model by Kimberley Jensen) | Model file downloaded from Hugging Face during setup | Model: https://huggingface.co/KimberleyJSN/melbandroformer<br>Code: https://github.com/KimberleyJensen/Mel-Band-Roformer-Vocal-Model (originally from https://github.com/lucidrains/BS-RoFormer ) |
 | Detects pitch and writes the pitch bars | CREPE (the model shipped with torchcrepe) | Installed with pip as torchcrepe. The model file is inside the package | https://github.com/maxrmorrison/torchcrepe |
 | Finds when each word is sung | Meta MMS forced alignment model (MMS_FA in torchaudio) | Model file downloaded from Meta's official URL during setup | https://dl.fbaipublicfiles.com/mms/torchaudio/ctc_alignment_mling_uroman/model.pt |
-| Another option for vocal separation (lighter) | Demucs `htdemucs` | Not installed by default. To use it, install the `demucs` package first (steps in `server\config.py`); the model comes from Hugging Face | https://huggingface.co/adefossez/HTDemucs |
 
 Also: [yt-dlp](https://github.com/yt-dlp/yt-dlp) for adding songs from YouTube, and lyrics from [LRCLIB](https://lrclib.net).
 
@@ -70,7 +100,7 @@ These models and tools each have their own license. The Meta MMS model is CC-BY-
 ## Privacy
 
 - The server only listens on `127.0.0.1`. Other people cannot connect to it.
-- Only three things go online: searching for lyrics, adding a song from YouTube, and checking GitHub for a newer version at startup.
+- It only goes online when: searching for lyrics, adding a song from YouTube, checking GitHub for a newer version at startup, and when you run `update.bat`.
 - To stay offline at startup, set `CHECK_UPDATE` to `no` in `start.bat`.
 - Your songs, recordings and scores are stored only in the `data\` folder on your PC. Nothing is sent anywhere.
 

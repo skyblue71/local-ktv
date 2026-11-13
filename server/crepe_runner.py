@@ -22,8 +22,7 @@ import torch
 from server.crepe_model import CrepeModel
 from server.crepe_viterbi import viterbi_bins
 
-CREPE_RATE = 16000        # CREPE 只吃 16000Hz 的聲音
-WINDOW = 1024             # 一幀 1024 個取樣點
+WINDOW = 1024            # 一幀 1024 個取樣點
 BATCH_FRAMES = 1024       # 一次算 1024 幀（跟原本的設定一樣）
 CENTS_PER_BIN = 20        # 每一格 20 音分
 FIRST_BIN_CENTS = 1997.3794084376191   # 第 0 格的音分（10Hz 當作 0 音分）

@@ -23,17 +23,12 @@ import network_guard  # noqa: E402
 # 第 1 步：擋住網路（要在載入其他程式之前）
 network_guard.start()
 
-# 第 2 步：建立兩個空的暫存資料夾，假裝模型不見了
-empty_hf_folder = tempfile.mkdtemp(prefix="karaoke_test_hf_")
-empty_torch_folder = tempfile.mkdtemp(prefix="karaoke_test_torch_")
-os.environ["HF_HUB_CACHE"] = empty_hf_folder     # Hugging Face 模型的位置
-os.environ["TORCH_HOME"] = empty_torch_folder    # Meta 舊版模型的位置
-
 from server import config, separator  # noqa: E402
 
-# Mel-Band RoFormer 的模型位置也改到空的暫存資料夾（config.py 的 MELBAND_MODEL_DIR）
+# 第 2 步：模型的位置（models\ 和舊版放在外面的位置）都改到空的暫存資料夾，假裝模型不見了（config.py 的 model_path）
 empty_melband_folder = tempfile.mkdtemp(prefix="karaoke_test_melband_")
-config.MELBAND_MODEL_DIR = empty_melband_folder
+config.MODELS_DIR = empty_melband_folder
+config.OLD_MODEL_DIRS = {name: empty_melband_folder for name in config.OLD_MODEL_DIRS}
 
 print()
 print("【測試】假裝模型被刪掉，載入模型…")
@@ -50,8 +45,6 @@ except Exception as error:
 no_network = network_guard.print_report()
 
 # 刪掉剛剛建立的空資料夾
-shutil.rmtree(empty_hf_folder, ignore_errors=True)
-shutil.rmtree(empty_torch_folder, ignore_errors=True)
 shutil.rmtree(empty_melband_folder, ignore_errors=True)
 
 print()

@@ -19,9 +19,6 @@ import sys
 # 讓這個程式找得到 server 資料夾
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 只用電腦裡的模型，不連網
-os.environ["HF_HUB_OFFLINE"] = "1"
-
 from server import pitch_analyzer, song_store  # noqa: E402
 from server.song_processor import rebuild_lyrics  # noqa: E402
 

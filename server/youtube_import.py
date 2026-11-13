@@ -18,7 +18,9 @@ import subprocess
 import sys
 
 from server.audio_tools import get_ffmpeg_path
-from server.config import NODE_MIN_VERSION, YOUTUBE_MAX_HEIGHT
+from server.config import DATA_DIR, NODE_MIN_VERSION, YOUTUBE_MAX_HEIGHT
+
+YTDLP_CACHE_DIR = os.path.join(DATA_DIR, "yt-dlp-cache")
 
 # 執行 yt-dlp 的方式：用虛擬環境的 python 跑 python -m yt_dlp
 YTDLP_COMMAND = [sys.executable, "-m", "yt_dlp"]
@@ -75,7 +77,8 @@ def check_url(url):
 
 def common_arguments():
     """每次執行 yt-dlp 都要加的參數"""
-    arguments = ["--no-playlist", "--encoding", "utf-8", "--no-colors"]
+    # --cache-dir：yt-dlp 的小暫存放在 data\ 裡（不放到資料夾外面的使用者資料夾）
+    arguments = ["--no-playlist", "--encoding", "utf-8", "--no-colors", "--cache-dir", YTDLP_CACHE_DIR]
     node = find_node()
     if node is not None:
         arguments += ["--js-runtimes", "node:" + node]

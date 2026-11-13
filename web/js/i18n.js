@@ -54,10 +54,6 @@ function pickLanguage(choice) {
 const current = pickLanguage(loadSettings().language);
 document.documentElement.lang = current.htmlLang;
 
-export function currentLanguage() {
-  return current.id;
-}
-
 // 把 {名字} 換成 values 裡的東西
 function fill(text, values) {
   if (!values) {

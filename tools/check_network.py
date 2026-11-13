@@ -61,7 +61,7 @@ def test_load_model():
     print()
     print("【1】載入去人聲模型…")
     separator.load_model()
-    print("    成功（" + separator.config.SEPARATOR + "）")
+    print("    成功（Mel-Band RoFormer）")
 
 
 def read_page(path):

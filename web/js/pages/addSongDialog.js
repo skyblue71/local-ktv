@@ -18,6 +18,9 @@ import { fillNames } from './songNames.js';
 export function openAddSongDialog(systemInfo, onDone) {
   const canSeparate = !systemInfo || systemInfo.separator;
   const canYoutube = !systemInfo || systemInfo.youtube;
+  // 模型檔不見了（被刪掉）：在這裡說要按 update.bat 下載（只有確定是 false 才算不見）
+  const separatorModel = !systemInfo || systemInfo.separatorModel !== false;
+  const syllableModel = !systemInfo || systemInfo.syllableModel !== false;
 
   let youtubePanel = '<div class="notice">' + t('沒有安裝 yt-dlp') + helpTip(t('執行 setup.bat 安裝')) + '</div>';
   if (canYoutube) {
@@ -33,8 +36,18 @@ export function openAddSongDialog(systemInfo, onDone) {
   let separateNote = helpTip(t('把歌分成伴奏和原唱的人聲。\n評分條是照原唱的人聲畫的，沒分出來會畫到樂器的音；也才有導唱可以開'));
   let separateAttribute = 'checked';
   if (!canSeparate) {
-    separateNote = '<span class="muted small">' + t('（未安裝）') + '</span>';
-    separateAttribute = 'disabled';
+    separateNote = '<span class="muted small" id="separate-note">' + t('（未安裝）') + '</span>';
+    separateAttribute = 'disabled aria-describedby="separate-note"';
+  } else if (!separatorModel) {
+    separateNote = '<span class="muted small" id="separate-note">' + t('（模型不見了）') + '</span>' +
+      helpTip(t('按 update.bat 下載'));
+    separateAttribute = 'disabled aria-describedby="separate-note"';
+  }
+  // 認音節模型不見了：歌照樣加得進去，只是每個字什麼時候變色用猜的
+  let syllableNotice = '';
+  if (!syllableModel) {
+    syllableNotice = '<div class="notice">' + t('認音節模型不見了') +
+      helpTip(t('新歌的字幕每個字什麼時候變色，會用猜的，比較不準。\n按 update.bat 下載')) + '</div>';
   }
 
   const html =
@@ -63,6 +76,7 @@ export function openAddSongDialog(systemInfo, onDone) {
     '      <label for="separate-check">' + t('AI 去人聲') + separateNote + '</label>' +
     '      <div><input type="checkbox" class="switch" id="separate-check" ' + separateAttribute + '></div>' +
     '    </div>' +
+    syllableNotice +
     '  </section>' +
     // ---- 右邊：歌詞 ----
     '  <section class="add-column">' +

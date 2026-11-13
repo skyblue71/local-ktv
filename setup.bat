@@ -114,14 +114,15 @@ if not exist ".venv\Scripts\python.exe" (
   if errorlevel 1 goto failed
 )
 
-".venv\Scripts\python.exe" -m pip install --upgrade pip
+".venv\Scripts\python.exe" -m pip install --no-cache-dir --upgrade pip
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m pip install torch==2.11.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu128
+rem --no-cache-dir：pip 不要在資料夾外面（使用者資料夾的 AppData）另外存一份下載的檔案
+".venv\Scripts\python.exe" -m pip install --no-cache-dir -r requirements-torch.txt
 if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install --no-cache-dir -r requirements.txt
 if errorlevel 1 goto failed
 rem 這份只裝套件本身、不裝它要的其他套件（原因寫在檔案裡）
-".venv\Scripts\python.exe" -m pip install --no-deps -r requirements-nodeps.txt
+".venv\Scripts\python.exe" -m pip install --no-cache-dir --no-deps -r requirements-nodeps.txt
 if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" tools\download_model.py
 if errorlevel 1 goto failed

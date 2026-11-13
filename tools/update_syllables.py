@@ -41,7 +41,7 @@ def update(meta):
 
 def main():
     if not syllable_model.is_available():
-        print("電腦裡沒有 MMS 模型，請先執行 setup.bat（或 tools\\download_model.py）")
+        print("電腦裡沒有 MMS 模型，請先按 update.bat（會問你要不要下載）")
         sys.exit(1)
     for meta in song_store.list_songs():
         if meta.get("status") != "ready":

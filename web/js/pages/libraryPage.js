@@ -143,7 +143,9 @@ async function loadSystemInfo() {
     if (!line) {
       return;
     }
-    if (systemInfo.separator && systemInfo.gpu) {
+    if (systemInfo.separator && systemInfo.separatorModel === false) {
+      line.textContent = t('AI 去人聲：模型不見了（按 update.bat 下載）');
+    } else if (systemInfo.separator && systemInfo.gpu) {
       line.textContent = t('AI 去人聲用：{device}', { device: systemInfo.gpu });
     } else if (systemInfo.separator) {
       line.textContent = t('AI 去人聲用：CPU（比較慢）');

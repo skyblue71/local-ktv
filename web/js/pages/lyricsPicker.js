@@ -586,10 +586,12 @@ export class LyricsPicker {
       text = t('找不到「{query}」', { query: escapeHtml(this.lastQuery) }) + helpTip(tip);
     } else {
       let tip = t('點一列就換成那一份。按 ▶ 可以先聽聽看，字幕有沒有跟歌聲同時出來\n\n') +
+        t('排在前面的：有時間軸 → 有歌詞 → 時間準 → 長度跟你的歌差不多\n\n') +
         t('換了會影響：字幕和評分條重做、整首移動歸零。\n') +
         t('不會影響：你修過的譜、裁切。\n你調過的字，句子文字一樣的才留著');
       if (beforeAdd) {
-        tip = t('點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本');
+        tip = t('點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本\n\n') +
+          t('排在前面的：有時間軸 → 有歌詞 → 長度跟你的歌差不多');
       }
       text = '<span class="muted">' + t('找到 {count} 份', { count: this.results.length }) + '</span>' + helpTip(tip);
     }

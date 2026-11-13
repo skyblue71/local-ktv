@@ -1,5 +1,5 @@
 // 歌詞搜尋結果清單（「加入歌曲」的歌詞選單和「編輯歌詞」頁共用）
-//   sortResults    最可能對的排前面
+//   sortResults    最可能對的排前面（sortByMatch：跟歌聲比過之後，同一套再加「時間準不準」）
 //   isRecommended  這一筆算不算「推薦」（有時間軸、長度差 15 秒以內）
 //   resultsHtml    做出清單的 HTML：每一筆整列都可以點（data-pick="第幾筆"），選到的左邊打勾
 
@@ -36,15 +36,55 @@ export function matchScore(item, duration) {
   return score;
 }
 
-// 排法：先照「哪一種問法找到的」（found_by，0 = 最貼近你打的歌名、歌手，
-//   後面的可能是同名的別首歌），同一種裡面再照長度
+// ---------- 排序（加歌和編輯歌詞用同一套）----------
+// 每一份歌詞算出幾個數字，前面的先比，一樣才比下一個；數字小的排前面：
+//   1. 有時間軸的在前（沒有時間軸，唱歌時不會有字幕）
+//   2. 有歌詞的在前（有些只有「純音樂」記號、沒有字）
+//   3. 時間準不準（只有編輯歌詞頁有：拿你的歌聲比過，見 matchRank；加歌時還沒有歌聲，跳過這一步）
+//   4. 長度差不多的在前（差 RECOMMEND_LIMIT 秒以內，算同一個版本）
+//   5. 搜尋的字比較貼近的在前（found_by，0 = 最貼近你打的歌名、歌手；後面的可能是同名的別首歌）
+//   6. 長度比較接近的在前
+
+// 這份歌詞跟你的歌差幾秒（不知道長度就當作差很多）
+function lengthDifference(item, duration) {
+  const length = realLength(item);
+  if (!duration || !length) {
+    return 500;
+  }
+  return Math.abs(length - duration);
+}
+
+function sortKeys(item, duration, quality) {
+  let noTime = 0;
+  if (!item.synced) {
+    noTime = 1;
+  }
+  let noText = 0;
+  if (!item.synced && !item.plain) {
+    noText = 1;
+  }
+  const difference = lengthDifference(item, duration);
+  let otherVersion = 0;
+  if (difference > RECOMMEND_LIMIT) {
+    otherVersion = 1;
+  }
+  return [noTime, noText, quality, otherVersion, item.found_by || 0, difference];
+}
+
+// 照 sortKeys 一個一個比
+function compareKeys(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return a[i] - b[i];
+    }
+  }
+  return 0;
+}
+
+// 還沒跟歌聲比過（加歌時、或比對失敗）：第 3 步跳過
 export function sortResults(results, duration) {
   results.sort(function (a, b) {
-    const queryDifference = (a.found_by || 0) - (b.found_by || 0);
-    if (queryDifference !== 0) {
-      return queryDifference;
-    }
-    return matchScore(a, duration) - matchScore(b, duration);
+    return compareKeys(sortKeys(a, duration, 0), sortKeys(b, duration, 0));
   });
   return results;
 }
@@ -200,20 +240,28 @@ function matchTag(item) {
   return '<span class="tag tag-warn" title="' + tip + '">' + icon('warn') + ' ' + t('可能不準') + '</span>';
 }
 
-// 照「時間準不準」排（有比對結果才用）：
-//   有時間軸的排前面 → 跟大部分版本整首差很多的排很後面 → 時間可能不準（3 句以上原唱沒在唱）的排後面
-//   → 有幾句跟大部分版本不一樣的往後 → 要整首移才準的排後面
-//   → 一兩句原唱沒在唱的稍微後面（可能只是 AI 去人聲分錯，不一定是錯的）→ 長度接近
+// 跟歌聲比過之後（編輯歌詞頁）：跟 sortResults 同一套，多第 3 步「時間準不準」（matchRank）
 export function sortByMatch(results, duration) {
   results.sort(function (a, b) {
-    return matchRank(a, duration) - matchRank(b, duration);
+    return compareKeys(sortKeys(a, duration, matchRank(a)), sortKeys(b, duration, matchRank(b)));
   });
   return results;
 }
 
-function matchRank(item, duration) {
-  if (!item.match || !item.synced) {
-    return 100000 + matchScore(item, duration);
+// 時間準不準：0 = 最準，越大越不準
+//   跟大部分版本整首差很多的很大 → 時間可能不準（3 句以上原唱沒在唱）的大
+//   → 有幾句跟大部分版本不一樣的、要整首移才準的往後一點
+//   → 一兩句原唱沒在唱的稍微後面（可能只是 AI 去人聲分錯，不一定是錯的）
+//   沒有比到的（伺服器一次最多比 30 份）：不知道準不準，排在比過的後面
+//   沒有時間軸的（match 是 null）：0，第 1 步已經排到後面
+const NOT_COMPARED = 100000;
+
+function matchRank(item) {
+  if (item.match === undefined) {
+    return NOT_COMPARED;
+  }
+  if (item.match === null || !item.synced) {
+    return 0;
   }
   let rank = 0;
   if (item.match.silent > FEW_SILENT) {
@@ -232,7 +280,7 @@ function matchRank(item, duration) {
     }
     rank += 300 * check.odd.length;
   }
-  return rank + matchScore(item, duration);
+  return rank;
 }
 
 // 一列（可以點的選項）：左邊圓圈（選到的打勾）、中間內容、右邊（標籤、試聽鍵）

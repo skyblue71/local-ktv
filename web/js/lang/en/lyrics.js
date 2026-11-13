@@ -136,7 +136,9 @@ export const LYRICS = {
   '點一列就換成那一份。按 ▶ 可以先聽聽看，字幕有沒有跟歌聲同時出來\n\n': 'Click a row to switch to it. Press ▶ to hear whether the lyrics show at the same time as the singing\n\n',
   '換了會影響：字幕和評分條重做、整首移動歸零。\n': 'Switching affects: lyrics and pitch bars are rebuilt, lyrics offset goes back to zero.\n',
   '不會影響：你修過的譜、裁切。\n你調過的字，句子文字一樣的才留著': 'Doesn\'t affect: your edited chart, trim.\nWords you adjusted are kept only where the line text is the same',
-  '點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本': 'Click a row to pick it. A green check on the length (same as your song) usually means the right version',
+  '點一列選它。長度打綠勾（跟你的歌一樣長）的通常是對的版本\n\n': 'Click a row to pick it. A green check on the length (same as your song) usually means the right version\n\n',
+  '排在前面的：有時間軸 → 有歌詞 → 時間準 → 長度跟你的歌差不多\n\n': 'Listed first: has timing → has lyrics → timing matches → about as long as your song\n\n',
+  '排在前面的：有時間軸 → 有歌詞 → 長度跟你的歌差不多': 'Listed first: has timing → has lyrics → about as long as your song',
   '找到 {count} 份': '{count} found',
   '改了搜尋的字，按搜尋鍵更新': 'Search text changed. Press search to update',
 

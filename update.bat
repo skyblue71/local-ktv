@@ -1,5 +1,13 @@
 @echo off
+if "%KTV_UTF8%"=="1" goto utf8_ready
+setlocal
+set "KTV_UTF8=1"
 chcp 65001 >nul
+cmd /c ""%~f0" %*" & exit /b
+:utf8_ready
+rem 上面幾行只能有英文：命令視窗一開始不是 UTF-8（例如繁體中文 Windows 是 Big5）時，
+rem 在同一個命令視窗程序裡切成 UTF-8，會把後面中文那幾行讀歪，把半句中文當成指令。
+rem 所以先切成 UTF-8，再開一個新的命令視窗程序從頭跑這個檔案；新程序一開始就是 UTF-8，讀得正確
 cd /d "%~dp0"
 
 rem 檢查更新：到 GitHub 看有沒有新版，有的話問你要不要更新（tools\update.py）

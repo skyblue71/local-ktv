@@ -43,7 +43,7 @@ Headphones are recommended. Otherwise the microphone picks up the backing track 
 | File | What it does |
 |---|---|
 | `start.bat` | **Starts the app.** This is the only one you normally need. The first run installs everything. It never asks you anything |
-| `update.bat` | **Updates and tidies up**: updates the app, removes packages it no longer uses, downloads missing AI models or removes unused ones. It asks before updating the app or touching AI models |
+| `update.bat` | **Updates and tidies up**: updates the app, installs missing packages or removes unused ones, downloads missing AI models or removes unused ones. It asks before updating the app, installing packages or touching AI models |
 | `setup.bat` | Installs the environment. `start.bat` runs it the first time, so you normally don't need it |
 | `檢查連網.bat` | Checks that the app doesn't connect to the internet behind your back. Takes about a minute and doesn't touch your songs |
 
@@ -64,9 +64,9 @@ All versions are pinned in the lists. Everything comes from PyPI or the official
 `start.bat` only starts the app. If a newer version exists it just says so and does not ask. Updating and tidying up happen in `update.bat`, which you can run any time:
 
 - **Program files**: compared with the latest version on GitHub, and updated only if you press Y. Changed files are replaced, files dropped in the new version are removed, and the old ones are backed up to `data\update_backup` first. Your songs, scores and any files you put here yourself are left alone.
-- **Packages** (in `.venv`): ones this app no longer uses go to the Recycle Bin, and it lists what was removed. Only packages this app installed are removed. If it can't tell, it asks you first.
+- **Packages** (in `.venv`): if a package from the lists is not installed, it asks whether to install it. Ones this app no longer uses go to the Recycle Bin, and it lists what was removed. Only packages this app installed are removed. If it can't tell, it asks you first.
 - **AI models** (in `models`, one folder per model): it asks before downloading missing ones, and before moving models the app no longer uses to the Recycle Bin. Anything you put in `models` yourself is left alone.
-- If you used `git clone`: update the app with `git pull`. `update.bat` only tidies up packages and AI models.
+- If you used `git clone`: update the app with `git pull`, then run `update.bat` to install newly added packages and tidy up packages and AI models (it doesn't touch the program files).
 - **Installed before 2026-11-14? Run `update.bat` twice.** The first run uses the old updater, which only copies in the new files. The second run uses the new one, which tidies up packages and AI models and removes old files the new version no longer has.
 
 ### Uninstalling

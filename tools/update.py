@@ -17,6 +17,7 @@
   7. 套件清單（requirements-torch.txt、requirements.txt、requirements-nodeps.txt）有變：用 pip 安裝套件
      （只裝在這個程式的 .venv 裡；還沒安裝環境就不裝，留給 start.bat 第一次啟動）
   8. 整理（tidy_up，按 update.bat 就會做，不管有沒有新版、按 Y 還是 N、資料夾是不是 Git 管理的）：
+     - 套件：清單上有、還沒裝（或比清單舊）的，問要不要裝（install_missing_packages；用 git pull 更新的人靠這裡裝新套件）
      - 套件：清掉 .venv 裡現在的程式用不到的（tools\\clean_packages.py）
      - AI 模型：少了的問要不要下載（tools\\download_model.py --ask）、以前用過現在不用的問要不要清掉（tools\\clean_models.py）
 不會動的：data（歌、分數）、models（AI 模型，交給第 8 步）、.venv、你自己放進這個資料夾的檔案
@@ -303,6 +304,74 @@ def install_packages():
     return True
 
 
+def is_older(have, wanted):
+    """版本 have 比 wanted 舊嗎（用 pip 自己的版本比較；比不了就當成「不一樣就算舊」）"""
+    try:
+        from pip._vendor.packaging.version import Version
+        return Version(have) < Version(wanted)
+    except Exception:
+        return have != wanted
+
+
+def missing_packages():
+    """
+    套件清單上寫的套件（名字==版本），.venv 裡沒裝、或裝的比清單舊的：[(名字, 清單上的版本, 裝的版本；沒裝是空字串)]
+    裝的比清單新（例如自己更新過 yt-dlp）不算
+    """
+    import importlib.metadata
+
+    result = []
+    for file_name, _ in PACKAGE_LISTS:
+        path = os.path.join(PROJECT, file_name)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as file:
+            for line in file:
+                line = line.split("#")[0].strip()
+                if line == "" or line.startswith("-"):
+                    continue   # 空白行、說明、--index-url 這類設定
+                found = re.match(r"([A-Za-z0-9._-]+)(?:\[[^\]]*\])?\s*==\s*([^\s;]+)", line)
+                if not found:
+                    continue
+                name = found.group(1)
+                wanted = found.group(2)
+                try:
+                    have = importlib.metadata.version(name)
+                except importlib.metadata.PackageNotFoundError:
+                    have = ""
+                if have == "" or is_older(have, wanted):
+                    result.append((name, wanted, have))
+    return result
+
+
+def install_missing_packages():
+    """
+    按 update.bat：套件清單上有、還沒裝（或比清單舊）的套件，列出來問要不要用 pip 裝。
+    用 Git 更新（git pull）的人，清單多了新套件也靠這裡裝
+    """
+    missing = missing_packages()
+    if len(missing) == 0:
+        return
+    print()
+    say("These packages from the package lists are not installed, or are older than the lists:",
+        "套件清單上的這些套件還沒裝，或比清單上的舊：")
+    for name, wanted, have in missing:
+        if have == "":
+            print("  " + name + " " + wanted)
+        else:
+            print("  " + name + " " + wanted + "  (" + have + ")")
+    say("Source: https://pypi.org (PyTorch from https://download.pytorch.org). Only installed into this app's .venv.",
+        "來源：https://pypi.org （PyTorch 從 https://download.pytorch.org ）。只裝在這個程式的 .venv 裡。")
+    if not ask_yes_no("Install them now with pip?", "要現在用 pip 安裝嗎？"):
+        say("Not installed. You will be asked again the next time you run update.bat.",
+            "先不裝。下次按 update.bat 會再問。")
+        print()
+        return
+    if not install_packages():
+        say("Installing packages failed. Please run setup.bat again.", "套件安裝失敗，請再執行一次 setup.bat")
+    print()
+
+
 def package_list_changed(changed):
     """更新的檔案裡有沒有套件清單"""
     for name, _ in PACKAGE_LISTS:
@@ -381,11 +450,12 @@ def apply_update(new_folder, changed, removed):
 
 def tidy_up():
     """
-    按 update.bat：照 TIDY_STEPS 整理套件和 AI 模型（每個程式自己會說明、該問的會問）。
+    按 update.bat：先補裝清單上還沒裝的套件，再照 TIDY_STEPS 整理套件和 AI 模型（每個程式自己會說明、該問的會問）。
     用新版的檔案跑（更新完才叫這個）。還沒安裝環境、或沒有那個檔案就不跑
     """
     if not installed():
         return
+    install_missing_packages()
     for name, extra in TIDY_STEPS:
         path = os.path.join(PROJECT, "tools", name)
         if os.path.exists(path):

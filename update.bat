@@ -30,10 +30,10 @@ echo Please close Local KTV first (close the start.bat window).
 echo 請先關掉本機KTV（關閉 start.bat 的視窗）。
 echo.
 echo 1. Program files: compared with the latest version on the official GitHub page. Nothing is changed until you press Y.
-echo 2. Packages in .venv: the ones this app no longer uses are removed.
+echo 2. Packages in .venv: missing ones can be installed, unused ones are removed.
 echo 3. AI models in models: missing ones can be downloaded, unused ones removed. You are asked first.
 echo 1. 程式：跟 GitHub 官方頁面上的最新版比一比。你按 Y 之前，什麼都不會改。
-echo 2. 套件（.venv 裡的）：清掉這個程式用不到的。
+echo 2. 套件（.venv 裡的）：少了的可以裝、用不到的清掉。
 echo 3. AI 模型（models 裡的）：少了的可以下載、用不到的可以清掉，都會先問你。
 echo.
 

@@ -12,7 +12,8 @@
   1. 照每個套件自己的檔案清單（RECORD），把它的資料夾和檔案搬到 .venv\\removed_packages\\時間\\
      （跟留下來的套件共用的不搬）
   2. 確認程式還載得起來（import server.main）。載不起來就全部搬回去
-  3. 載得起來：整個資料夾丟到資源回收筒（丟不了就留在原地，告訴你在哪裡）
+  3. 載得起來：整個資料夾丟到資源回收筒。丟不了等一下再試（RECYCLE_TRIES）；還是不行就先留在原地、告訴你在哪裡，
+     下次跑的時候再丟一次（recycle_leftovers）
 畫面上的訊息每一句都有英文和中文。
 """
 import importlib.metadata
@@ -31,6 +32,9 @@ SITE = os.path.join(VENV, "Lib", "site-packages")
 RECORD_FILE = os.path.join(VENV, "packages_from_lists.txt")
 KEPT_FILE = os.path.join(VENV, "packages_kept.txt")   # 問過、你選了留著的（更新的時候再問）
 REMOVED_FOLDER = os.path.join(VENV, "removed_packages")
+# 丟資源回收筒失敗的話，最多試幾次、每次之間等幾秒（to_recycle_bin）
+RECYCLE_TRIES = 3
+RECYCLE_WAIT_SECONDS = 3
 # 建立虛擬環境就有的，不算在清單裡，也不會被移掉
 ALWAYS_KEEP = ["pip"]
 # 套件清單裡沒寫、但程式需要的檢查：移完之後確認這個載得起來
@@ -168,8 +172,11 @@ def move_back(moved):
             shutil.move(target, original)
 
 
-def to_recycle_bin(path):
-    """把 path 丟到資源回收筒（Windows 的 SHFileOperationW）。成功回傳 True"""
+def recycle_once(path):
+    """
+    把 path 丟到資源回收筒一次（Windows 的 SHFileOperationW）。回傳結果代碼：0 = 成功；
+    其他是 Windows 給的代碼，-1 = 叫不到這個功能，-2 = Windows 說好了、東西卻還在
+    """
     import ctypes
     from ctypes import wintypes
 
@@ -187,8 +194,61 @@ def to_recycle_bin(path):
     try:
         result = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
     except (AttributeError, OSError):
-        return False
-    return result == 0 and not operation.fAnyOperationsAborted and not os.path.exists(path)
+        return -1
+    if result == 0 and (operation.fAnyOperationsAborted or os.path.exists(path)):
+        return -2
+    return result
+
+
+def to_recycle_bin(path):
+    """
+    把 path 丟到資源回收筒。成功回傳 True。
+    失敗的話等一下再試（剛搬過的檔案，防毒軟體有時還在掃描、暫時鎖住），試了 RECYCLE_TRIES 次還是不行，
+    就把 Windows 給的代碼印出來（查原因用）
+    """
+    code = 0
+    for attempt in range(RECYCLE_TRIES):
+        if attempt > 0:
+            time.sleep(RECYCLE_WAIT_SECONDS)
+        code = recycle_once(path)
+        if code == 0:
+            return True
+    if code > 0:
+        code_text = hex(code)
+    else:
+        code_text = str(code)
+    say("Could not move it to the Recycle Bin (code from Windows: " + code_text + ").",
+        "丟不到資源回收筒（Windows 回傳的代碼：" + code_text + "）。")
+    return False
+
+
+def remove_empty_folder(path):
+    """path 是空的資料夾就拿掉"""
+    if os.path.isdir(path) and len(os.listdir(path)) == 0:
+        os.rmdir(path)
+
+
+def recycle_leftovers():
+    """
+    以前移掉、但當時丟不到資源回收筒的套件（還放在 .venv\\removed_packages\\時間\\），再丟一次。
+    這些當時已經確定要移掉、而且程式沒有它們也載得起來，所以不用再問
+    """
+    if not os.path.isdir(REMOVED_FOLDER):
+        return
+    names = sorted(os.listdir(REMOVED_FOLDER))
+    if len(names) > 0:
+        print()
+        say("Packages removed earlier are still kept in " + REMOVED_FOLDER + ". Moving them to the Recycle Bin again...",
+            "以前移掉的套件還放在 " + REMOVED_FOLDER + "，再丟一次資源回收筒…")
+        for name in names:
+            path = os.path.join(REMOVED_FOLDER, name)
+            if to_recycle_bin(path):
+                say("Moved to the Recycle Bin: " + name, "已經丟到資源回收筒：" + name)
+            else:
+                say("Still kept here (you can delete it yourself): " + path,
+                    "還留在這裡（可以自己刪掉）：" + path)
+        print()
+    remove_empty_folder(REMOVED_FOLDER)
 
 
 def remove_packages(names, installed):
@@ -203,9 +263,12 @@ def remove_packages(names, installed):
         return False
     if to_recycle_bin(folder):
         say("Moved to the Recycle Bin.", "已經移到資源回收筒。")
+        remove_empty_folder(REMOVED_FOLDER)
     else:
-        say("Removed. The files are kept here (you can delete them): " + folder,
-            "已經移掉。檔案先放在這裡（可以自己刪掉）：" + folder)
+        say("Removed. The files are kept here for now: " + folder,
+            "已經移掉。檔案先放在這裡：" + folder)
+        say("Next time you run update.bat it tries the Recycle Bin again. You can also delete this folder yourself.",
+            "下次按 update.bat 會再試一次丟到資源回收筒，也可以自己刪掉這個資料夾。")
     return True
 
 
@@ -232,6 +295,7 @@ def main():
         from pip._vendor.packaging.requirements import Requirement  # noqa: F401（看 pip 在不在）
     except ImportError:
         return
+    recycle_leftovers()
     entries = list_entries()
     if len(entries) == 0:
         return

@@ -14,9 +14,9 @@
   4. 都一樣、也沒有要刪的：已經是最新版，記下編號
   5. 有不一樣：（--start）說一句有新版就結束；（update.bat）列出來，問 Y / N。按 Y 才會動這個資料夾
   6. 更新：被換掉、被刪掉的舊檔案先備份到 data\\update_backup\\時間\\，再放上新的、刪掉舊的
-  7. 套件清單（requirements-torch.txt、requirements.txt、requirements-nodeps.txt）有變：用 pip 安裝套件
-     （只裝在這個程式的 .venv 裡；還沒安裝環境就不裝，留給 start.bat 第一次啟動）
-  8. 整理（tidy_up，按 update.bat 就會做，不管有沒有新版、按 Y 還是 N、資料夾是不是 Git 管理的）：
+  7. 套件不在更新的時候裝：交給第 8 步，問了才裝（還沒安裝環境就不裝，留給 start.bat 第一次啟動）
+  8. 整理（tidy_up，按 update.bat 就會做，不管有沒有新版、按 Y 還是 N、資料夾是不是 Git 管理的）。
+     要裝、要刪、要下載的，每一件都先列出來問 Y / N：
      - 套件：清單上有、還沒裝（或比清單舊）的，問要不要裝（install_missing_packages；用 git pull 更新的人靠這裡裝新套件）
      - 套件：清掉 .venv 裡現在的程式用不到的（tools\\clean_packages.py）
      - AI 模型：少了的問要不要下載（tools\\download_model.py --ask）、以前用過現在不用的問要不要清掉（tools\\clean_models.py）
@@ -372,14 +372,6 @@ def install_missing_packages():
     print()
 
 
-def package_list_changed(changed):
-    """更新的檔案裡有沒有套件清單"""
-    for name, _ in PACKAGE_LISTS:
-        if name in changed:
-            return True
-    return False
-
-
 def fetch_latest(version, work):
     """下載、解開最新版，回傳程式資料夾的路徑；失敗回傳 None（訊息已經印了）"""
     url = zip_url(version)
@@ -425,7 +417,7 @@ def show_changes(changed, removed):
 
 
 def apply_update(new_folder, changed, removed):
-    """換檔案、刪掉新版拿掉的舊檔案、需要的話裝套件。回傳 True = 都成功"""
+    """換檔案、刪掉新版拿掉的舊檔案（套件不在這裡裝：tidy_up 會問了再裝）"""
     backup_folder = os.path.join(PROJECT, "data", "update_backup", time.strftime("%Y%m%d-%H%M%S"))
     saved = replace_files(new_folder, changed, backup_folder)
     remove_files(removed, backup_folder)
@@ -435,17 +427,6 @@ def apply_update(new_folder, changed, removed):
         say("Removed %d old file(s)." % len(removed), "刪掉了 %d 個舊的程式檔。" % len(removed))
     if saved + len(removed) > 0:
         say("Old files are in: " + backup_folder, "舊的檔案在：" + backup_folder)
-    if not installed():
-        # 還沒安裝環境（例如只下載了 update.bat）：套件留給 start.bat 第一次啟動時裝，不動電腦裡的 Python
-        return True
-    if package_list_changed(changed):
-        say("The package list changed. Installing packages with pip (source: https://pypi.org)...",
-            "套件清單有變，正在用 pip 安裝套件（來源：https://pypi.org）…")
-        if not install_packages():
-            say("Installing packages failed. Please run setup.bat again.",
-                "套件安裝失敗，請再執行一次 setup.bat")
-            return False
-    return True
 
 
 def tidy_up():
@@ -553,8 +534,7 @@ def main(from_start):
             say(refused[0], refused[1])
             tidy_up()
             return 0
-        if not apply_update(new_folder, changed, removed):
-            return 1
+        apply_update(new_folder, changed, removed)
         write_checked(version)
         tidy_up()
 

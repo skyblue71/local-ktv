@@ -1,19 +1,19 @@
 """
 清掉用不到的套件：套件清單（requirements*.txt）改過之後，舊清單裝的、新清單用不到的套件，從 .venv 移到資源回收筒。
 按 update.bat 時跑（tools\\update.py 的 tidy_up），不連網，沒事的話不到一秒。
+每一次要移、要丟之前，都先列出名字、版本，問你 Y / N；選了留著（N）的記在 .venv\\packages_kept.txt，下次按 update.bat 再問。
 
 怎麼知道哪些是「舊清單裝的」：
   每次跑完都記一份「照現在的清單，要裝哪些套件」在 .venv\\packages_from_lists.txt。
-  下次清單改了，記錄裡有、現在不需要的，就是舊清單裝、新清單用不到的 → 直接移掉，跟你說移了哪些。
+  下次清單改了，記錄裡有、現在不需要的，就是舊清單裝、新清單用不到的 → 列出來問你。
   不在記錄裡的（你自己裝的）不會動。
-還沒有記錄的時候：分不出是舊清單裝的還是你自己裝的，所以列出「現在的清單用不到的套件」問你 Y / N。
-  選了留著（N）的記在 .venv\\packages_kept.txt，下次按 update.bat 會再問一次。
+還沒有記錄的時候：分不出是舊清單裝的還是你自己裝的，所以列出「現在的清單用不到的套件」問你，並說可能是你自己裝的。
 移的時候：
   1. 照每個套件自己的檔案清單（RECORD），把它的資料夾和檔案搬到 .venv\\removed_packages\\時間\\
      （跟留下來的套件共用的不搬）
   2. 確認程式還載得起來（import server.main）。載不起來就全部搬回去
   3. 載得起來：整個資料夾丟到資源回收筒。丟不了等一下再試（RECYCLE_TRIES）；還是不行就先留在原地、告訴你在哪裡，
-     下次跑的時候再丟一次（recycle_leftovers）
+     下次跑的時候列出裡面是哪些套件，問你要不要再丟一次（recycle_leftovers）
 畫面上的訊息每一句都有英文和中文。
 """
 import importlib.metadata
@@ -250,24 +250,30 @@ def packages_in(folder):
 
 def recycle_leftovers():
     """
-    以前移掉、但當時丟不到資源回收筒的套件（還放在 .venv\\removed_packages\\時間\\），列出是哪些套件，再丟一次。
-    這些當時已經確定要移掉、而且程式沒有它們也載得起來，所以不用再問
+    以前移掉、但當時丟不到資源回收筒的套件（還放在 .venv\\removed_packages\\時間\\）：
+    列出每個資料夾裡是哪些套件，問要不要再丟一次。選了留著，下次按 update.bat 再問
     """
     if not os.path.isdir(REMOVED_FOLDER):
         return
     names = sorted(os.listdir(REMOVED_FOLDER))
     if len(names) > 0:
         print()
-        say("Packages removed earlier are still kept in " + REMOVED_FOLDER + ". Moving them to the Recycle Bin again:",
-            "以前移掉的套件還放在 " + REMOVED_FOLDER + "，再丟一次資源回收筒：")
+        say("Packages removed earlier could not go to the Recycle Bin and are still kept in " + REMOVED_FOLDER + ":",
+            "以前移掉、當時丟不進資源回收筒的套件，還放在 " + REMOVED_FOLDER + "：")
         for name in names:
-            path = os.path.join(REMOVED_FOLDER, name)
             print("  " + name)
-            packages = packages_in(path)
+            packages = packages_in(os.path.join(REMOVED_FOLDER, name))
             if len(packages) == 0:
                 say("    (no package names found inside)", "    （裡面看不出是哪些套件）")
             for package in packages:
                 print("    " + package)
+        if not ask_yes_no("Move them to the Recycle Bin now?", "要現在丟到資源回收筒嗎？"):
+            say("Kept. You will be asked again the next time you run update.bat.",
+                "先留著。下次按 update.bat 會再問。")
+            print()
+            return
+        for name in names:
+            path = os.path.join(REMOVED_FOLDER, name)
             if to_recycle_bin(path):
                 say("Moved to the Recycle Bin: " + name, "已經丟到資源回收筒：" + name)
             else:
@@ -345,15 +351,15 @@ def main():
             asked = set(extra)
             print()
     else:
-        # 有記錄：記錄裡有、現在用不到的，是舊清單裝的，直接移掉（移不掉的留著，更新時再問）
+        # 有記錄：記錄裡有、現在用不到的，是舊清單裝的，問要不要移掉
         leftover = sorted((before & set(installed)) - now - kept)
         if len(leftover) > 0:
             print()
             say("The package lists changed. %d package(s) from the old lists are no longer used:" % len(leftover),
                 "套件清單改過了，舊清單裝的這 %d 個套件新版用不到：" % len(leftover))
             show_names(leftover, installed)
-            if not remove_packages(leftover, installed):
-                kept = kept | set(leftover)
+            kept = kept | ask_and_remove(leftover, installed)
+            asked = set(leftover)
             print()
 
     # 你上次選了留著、現在還是用不到的，再問一次

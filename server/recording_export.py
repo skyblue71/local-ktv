@@ -5,7 +5,7 @@
 這裡用 ffmpeg 轉成 mp3，檔案就會有長度，手機和其他軟體也都打得開。
 
 轉成什麼格式，寫在 config.py 的 RECORDING_FORMATS。
-錄音只會暫時放在暫存資料夾，轉完就刪掉，不會留在硬碟。
+錄音只會暫時放在程式自己的暫存資料夾（config.py 的 TEMP_DIR），轉完就刪掉，不會留在硬碟。
 """
 import os
 import shutil

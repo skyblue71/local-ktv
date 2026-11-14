@@ -2,6 +2,7 @@
 設定檔：所有路徑和常數都放在這裡，要改的時候只改這一個地方。
 """
 import os
+import tempfile
 
 # 專案根目錄（server 資料夾的上一層）
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -9,6 +10,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 資料存放位置
 DATA_DIR = os.path.join(BASE_DIR, "data")
 SONGS_DIR = os.path.join(DATA_DIR, "songs")
+
+# 程式自己的暫存資料夾：轉錄音、上傳中的歌這些暫時的檔案都放這裡（不放 Windows 的 Temp），用完就刪
+#   Python 的 tempfile 預設位置也改成這裡，所以用到暫存檔的套件（例如網頁伺服器收上傳的檔案）一起放進來
+#   中途被關掉留下來的：按 update.bat、開 start.bat 時清掉放超過一小時的（tools\update.py 的 clean_old_temp）
+TEMP_DIR = os.path.join(DATA_DIR, "temp")
+os.makedirs(TEMP_DIR, exist_ok=True)
+tempfile.tempdir = TEMP_DIR
 
 # 網頁檔案（前端）位置
 WEB_DIR = os.path.join(BASE_DIR, "web")

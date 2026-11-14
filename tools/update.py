@@ -71,6 +71,10 @@ TIDY_STEPS = [
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 上次比過、確定跟這個資料夾一樣的版本編號記在這裡
 CHECKED_FILE = os.path.join(PROJECT, ".venv", "update_version.txt")
+# 程式自己的暫存資料夾（跟 server\config.py 的 TEMP_DIR 同一個）：比對新版時，最新版的壓縮檔下載、解開在這裡，用完就刪
+TEMP_DIR = os.path.join(PROJECT, "data", "temp")
+# 暫存資料夾裡放超過這麼多秒的，是中途被關掉留下來的，跑的時候先清掉（正在用的不會放這麼久）
+OLD_TEMP_SECONDS = 3600
 
 
 def say(english, chinese):
@@ -484,8 +488,29 @@ def remind_git(from_start):
     return 0
 
 
+def clean_old_temp():
+    """
+    暫存資料夾（TEMP_DIR）裡放超過 OLD_TEMP_SECONDS 的（中途被關掉留下來的）清掉。
+    TEMP_DIR 本身留著（本機KTV 開著的時候還要用）
+    """
+    if not os.path.isdir(TEMP_DIR):
+        return
+    for name in os.listdir(TEMP_DIR):
+        path = os.path.join(TEMP_DIR, name)
+        try:
+            if time.time() - os.path.getmtime(path) < OLD_TEMP_SECONDS:
+                continue
+            if os.path.isdir(path):
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                os.remove(path)
+        except OSError:
+            pass   # 正在用、刪不掉的：下次再清
+
+
 def main(from_start):
     """from_start：是不是 start.bat 啟動時叫的。回傳結束代碼"""
+    clean_old_temp()
     if os.path.exists(os.path.join(PROJECT, ".git")):
         return remind_git(from_start)
 
@@ -495,7 +520,8 @@ def main(from_start):
         if version == "" or version == read_checked():
             return 0
 
-    work = tempfile.mkdtemp(prefix="local-ktv-update-")
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    work = tempfile.mkdtemp(prefix="update-", dir=TEMP_DIR)
     try:
         new_folder = fetch_latest(version, work)
         if new_folder is None:

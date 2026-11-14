@@ -228,9 +228,29 @@ def remove_empty_folder(path):
         os.rmdir(path)
 
 
+def packages_in(folder):
+    """
+    移掉的套件放的資料夾（.venv\\removed_packages\\時間\\）裡有哪些套件：["名字 版本", ...]
+    看裡面每個套件的 *.dist-info（套件自己的名字、版本記在這裡）
+    """
+    site = os.path.join(folder, "Lib", "site-packages")
+    result = []
+    if not os.path.isdir(site):
+        return result
+    for name in sorted(os.listdir(site)):
+        if not name.endswith(".dist-info"):
+            continue
+        try:
+            dist = importlib.metadata.Distribution.at(os.path.join(site, name))
+            result.append(dist.metadata["Name"] + " " + dist.version)
+        except Exception:
+            result.append(name[:-len(".dist-info")])
+    return result
+
+
 def recycle_leftovers():
     """
-    以前移掉、但當時丟不到資源回收筒的套件（還放在 .venv\\removed_packages\\時間\\），再丟一次。
+    以前移掉、但當時丟不到資源回收筒的套件（還放在 .venv\\removed_packages\\時間\\），列出是哪些套件，再丟一次。
     這些當時已經確定要移掉、而且程式沒有它們也載得起來，所以不用再問
     """
     if not os.path.isdir(REMOVED_FOLDER):
@@ -238,10 +258,16 @@ def recycle_leftovers():
     names = sorted(os.listdir(REMOVED_FOLDER))
     if len(names) > 0:
         print()
-        say("Packages removed earlier are still kept in " + REMOVED_FOLDER + ". Moving them to the Recycle Bin again...",
-            "以前移掉的套件還放在 " + REMOVED_FOLDER + "，再丟一次資源回收筒…")
+        say("Packages removed earlier are still kept in " + REMOVED_FOLDER + ". Moving them to the Recycle Bin again:",
+            "以前移掉的套件還放在 " + REMOVED_FOLDER + "，再丟一次資源回收筒：")
         for name in names:
             path = os.path.join(REMOVED_FOLDER, name)
+            print("  " + name)
+            packages = packages_in(path)
+            if len(packages) == 0:
+                say("    (no package names found inside)", "    （裡面看不出是哪些套件）")
+            for package in packages:
+                print("    " + package)
             if to_recycle_bin(path):
                 say("Moved to the Recycle Bin: " + name, "已經丟到資源回收筒：" + name)
             else:

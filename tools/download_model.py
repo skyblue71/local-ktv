@@ -242,15 +242,42 @@ def short_reason(error):
     return text[:200]
 
 
+MB = 1024 * 1024
+
+
+def show_progress(done, total, shown):
+    """
+    在同一行顯示下載進度（[#####-----]  45%  410 / 913 MB），百分比變了才重畫。回傳這次顯示的百分比
+    網站沒說檔案多大（total 是 0）：只顯示下載了幾 MB
+    """
+    if total <= 0:
+        print("\r  %d MB" % (done // MB), end="", flush=True)
+        return shown
+    percent = done * 100 // total
+    if percent != shown:
+        filled = percent // 5
+        bar = "#" * filled + "-" * (20 - filled)
+        print("\r  [%s] %3d%%  %d / %d MB" % (bar, percent, done // MB, total // MB), end="", flush=True)
+    return percent
+
+
 def fetch(url, temp, check_certificate):
-    """把 url 的內容存到 temp。check_certificate=False：不檢查網站的安全憑證"""
+    """把 url 的內容存到 temp，邊下載邊顯示進度。check_certificate=False：不檢查網站的安全憑證"""
     import requests
 
     with requests.get(url, stream=True, timeout=60, verify=check_certificate) as response:
         response.raise_for_status()
-        with open(temp, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                f.write(chunk)
+        total = int(response.headers.get("Content-Length") or 0)
+        done = 0
+        shown = -1
+        try:
+            with open(temp, "wb") as f:
+                for chunk in response.iter_content(chunk_size=MB):
+                    f.write(chunk)
+                    done += len(chunk)
+                    shown = show_progress(done, total, shown)
+        finally:
+            print()   # 進度那一行結束，後面的訊息從新的一行開始
 
 
 def fetch_without_certificate(url, temp, error):

@@ -19,6 +19,27 @@ A karaoke app that runs on your own PC and scores your singing. You add the song
 - **Chinese and English interface**: switch in Settings
 - **Updates**: when a newer version is out, it says so at startup, and `update.bat` updates it. Your songs and scores are not touched. If you used `git clone`, it only reminds you: update with `git pull`
 
+## Supported languages
+
+| | Languages |
+|---|---|
+| Lyrics | Japanese (kana above the kanji, romaji below), Chinese (Zhuyin or Pinyin, chosen in Settings), English. Korean shows romanization, but has not been tested with Korean songs yet |
+| Interface | Chinese, English |
+
+Songs that mix languages are fine too, for example English lines in a Japanese song. Each line is checked on its own.
+
+## How scoring works
+
+It works much like scoring at a Japanese karaoke box: pitch bars drawn from the original singer's pitch scroll across the screen, and your singing counts when your pitch lands on the bar.
+
+- **Each note**: PERFECT, GREAT, GOOD or MISS
+- **Total of 100**: pitch 55%, rhythm 15%, stability 10%, expression 10% (vibrato and loud/soft changes), completion 10%
+- **Technique bonus**: shakuri (scooping up into a note), kobushi (a quick turn inside a note) and fall (dropping off at the end of a note), +0.2 each, up to +3, with the total capped at 100
+- **Ranks**: SSS (95 and up), SS (90), S (85), A (80), B (70), C (60), D
+- **Difficulty**: Easy, Normal and Hard, which change how many semitones off still counts
+- **Octave free**: singing an octave higher or lower still counts (on by default, so men can sing women's songs and the other way round)
+- Rap, spoken and shouted parts only check that you are making sound, not the pitch
+
 ## Requirements
 
 - Windows 10 / 11

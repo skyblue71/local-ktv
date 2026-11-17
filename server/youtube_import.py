@@ -28,6 +28,16 @@ YTDLP_COMMAND = [sys.executable, "-m", "yt_dlp"]
 # 執行外部程式時不要跳出黑色視窗
 NO_WINDOW = 0x08000000
 
+# 下載影片用哪種格式，照順序試（下載失敗就換下一個，把上一次留下的半個檔案刪掉再試）：
+#   都是畫面最高 YOUTUBE_MAX_HEIGHT（1080p）＋最好的聲音。
+#   YouTube 的高畫質 HLS 格式（例如 616，m3u8 分段傳送）常常下載到一半被擋（HTTP 403），
+#   所以先挑一般 https 傳送的（proto），同樣條件挑 VP9 編碼（瀏覽器都能播 MV）；最後一次才什麼格式都可以
+FORMAT_CHOICES = [
+    ["-f", "bv*+ba/b", "-S", "res:%d,proto,vcodec:vp9" % YOUTUBE_MAX_HEIGHT],
+    ["-f", "bv*+ba/b", "-S", "res:%d,proto,vcodec:vp9" % YOUTUBE_MAX_HEIGHT],   # 有時只是暫時被擋，同一個再試一次
+    ["-f", "bv*+ba/b", "-S", "res:%d" % YOUTUBE_MAX_HEIGHT],
+]
+
 # 進度的輸出格式：
 #   PROGRESS|畫面格式|百分比|第幾段|總共幾段
 PROGRESS_TEMPLATE = (
@@ -182,26 +192,26 @@ def download_cover(url, folder):
     return os.path.exists(os.path.join(folder, "cover.jpg"))
 
 
-def download(url, folder, on_progress=None):
-    """
-    下載影片到 folder，存成 original.mp4（畫面最高 1080p＋最好的聲音）。
-    on_progress(畫面或聲音, 百分比) 用來回報進度。
-    回傳存好的檔名（例如 "original.mp4"）。
-    """
-    url = check_url(url)
-    format_arguments = [
-        "-f", "bv*+ba/b",                                  # 最好的畫面＋最好的聲音
-        "-S", "res:" + str(YOUTUBE_MAX_HEIGHT),            # 畫面最高 1080p
-        "--merge-output-format", "mp4",                    # 合成 mp4（瀏覽器可以播 MV）
-    ]
+def remove_partial_files(folder):
+    """刪掉下載影片留下的半個檔案、還沒合併的畫面或聲音（original.f616.mp4、*.part 這些）；完成的 original.mp4 不刪"""
+    for name in os.listdir(folder):
+        if name.startswith("original.") and name != "original.mp4":
+            try:
+                os.remove(os.path.join(folder, name))
+            except OSError:
+                pass
+
+
+def download_once(url, folder, format_arguments, on_progress):
+    """照 format_arguments 下載一次。成功回傳 (True, [])，失敗回傳 (False, 最後幾行訊息)"""
     command = YTDLP_COMMAND + common_arguments() + format_arguments + cover_arguments() + [
+        "--merge-output-format", "mp4",                    # 合成 mp4（瀏覽器可以播 MV）
         "--ffmpeg-location", get_ffmpeg_path(),
         "-P", folder,
         "-o", "original.%(ext)s",
         "--newline", "--progress", "--progress-template", PROGRESS_TEMPLATE,
         "--", url,
     ]
-
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                env=make_environment(), creationflags=NO_WINDOW)
     last_lines = []
@@ -216,10 +226,26 @@ def download(url, folder, on_progress=None):
             last_lines.append(line)
             last_lines = last_lines[-5:]
     process.wait()
+    return process.returncode == 0, last_lines
 
-    if process.returncode != 0:
-        raise RuntimeError("YouTube 下載失敗：" + " / ".join(last_lines)[-300:])
 
-    if not os.path.exists(os.path.join(folder, "original.mp4")):
-        raise RuntimeError("YouTube 下載完了，但找不到 original.mp4")
-    return "original.mp4"
+def download(url, folder, on_progress=None):
+    """
+    下載影片到 folder，存成 original.mp4（畫面最高 1080p＋最好的聲音）。
+    照 FORMAT_CHOICES 的順序試，失敗就換下一個。
+    on_progress(畫面或聲音, 百分比) 用來回報進度。
+    回傳存好的檔名（例如 "original.mp4"）。
+    """
+    url = check_url(url)
+    last_lines = []
+    for attempt, format_arguments in enumerate(FORMAT_CHOICES, 1):
+        if attempt > 1:
+            print("[yt-dlp] 下載失敗，換一種格式再試（第 %d 次，共 %d 次）" % (attempt, len(FORMAT_CHOICES)))
+            remove_partial_files(folder)
+        succeeded, last_lines = download_once(url, folder, format_arguments, on_progress)
+        if succeeded and os.path.exists(os.path.join(folder, "original.mp4")):
+            remove_partial_files(folder)
+            return "original.mp4"
+    remove_partial_files(folder)
+    raise RuntimeError("YouTube 下載失敗（換了幾種格式都不行，可能是 YouTube 暫時擋下載，等一下再按「重新處理」）："
+                       + " / ".join(last_lines)[-300:])

@@ -62,6 +62,5 @@ export const SERVER = {
   '找不到 torchcrepe 套件（CREPE 的模型檔在裡面），請執行 setup.bat': 'The torchcrepe package (it holds the CREPE model) is missing. Please run setup.bat',
   '請貼上影片網址（https:// 開頭）': 'Please paste a video link (starting with https://)',
   '讀不到影片資訊：': 'Cannot read the video info: ',
-  'YouTube 下載失敗：': 'YouTube download failed: ',
-  'YouTube 下載完了，但找不到 original.mp4': 'The YouTube download finished, but original.mp4 is missing',
+  'YouTube 下載失敗（換了幾種格式都不行，可能是 YouTube 暫時擋下載，等一下再按「重新處理」）：': 'YouTube download failed (several formats were tried; YouTube may be blocking downloads for now. Wait a bit, then click "Reprocess"): ',
 };

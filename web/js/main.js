@@ -27,6 +27,7 @@ const routes = [
 ];
 
 let currentPage = null;
+let currentUrl = location.href;   // 現在這一頁的網址（不換頁的時候，網址換回這個）
 
 // 把 "a=1&b=2" 變成 { a: '1', b: '2' }
 function parseQuery(text) {
@@ -49,6 +50,7 @@ function showPage() {
     currentPage.leave();
   }
   currentPage = null;
+  currentUrl = location.href;
 
   let hash = location.hash.replace(/^#/, '');
   if (hash === '') {
@@ -75,7 +77,17 @@ function showPage() {
   location.hash = '#/';
 }
 
-window.addEventListener('hashchange', showPage);
+// 網址 # 後面變了 = 要換頁。頁面有 canLeave 的（例如編輯歌詞頁有沒存的字），先問它可不可以離開；
+// 不可以：網址換回原本的（pushState 不會再觸發換頁），畫面不動
+function onHashChange() {
+  if (currentPage && currentPage.canLeave && !currentPage.canLeave()) {
+    history.pushState(null, '', currentUrl);
+    return;
+  }
+  showPage();
+}
+
+window.addEventListener('hashchange', onHashChange);
 
 // 上方導航列的字（index.html 裡寫的是中文，這裡換成現在的語言）
 document.title = t('本機KTV');

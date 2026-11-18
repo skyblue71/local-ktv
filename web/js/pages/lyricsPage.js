@@ -32,7 +32,8 @@ const OFFSET_HELP = t('整首字幕一起移。\n字幕比歌聲早出來 → �
   t('會影響：字幕，和跟著字走的評分條。\n不會影響：你修過的譜、裁切');
 const ALIGN_HELP = t('決定每一句從幾秒開始。下面說的 AI，是會聽「每個字在第幾秒唱」的那個模型。\n\n') +
   t('照歌詞檔：\n・整首早或晚：不會自己移，用你設的「整首移動」。\n') +
-  t('・每一句都待在歌詞檔寫的那段時間裡，不搬、也不會少。\n\n') +
+  t('・每一句照歌詞檔的時間開始，不搬、也不會少。\n') +
+  t('・開頭會照歌聲調一點；唱到哪裡結束歌詞檔沒寫，照歌聲算。\n\n') +
   t('自動：\n・整首早或晚：程式拿歌詞檔的時間跟歌聲比，自己算要移幾秒。\n') +
   t('・每一句：AI 聽整首歌，找這一句是在哪裡唱的。跟歌詞檔寫的地方差很多、AI 又很確定，才搬過去。\n') +
   t('・這支影片沒唱的句子不顯示。\n\n') +
@@ -47,7 +48,8 @@ const TAP_HELP = t('會播放原曲。每一句開始唱的瞬間，按一下空
   t('要照你按的時間：「歌詞時間」選「照歌詞檔」。選「自動」的話，程式可能把句子搬到別的地方');
 
 let song = null;
-let savedLrc = '';    // 現在存著的歌詞（清單上標「✓ 已選」用）
+let savedLrc = '';    // 現在存著的歌詞（清單上標「✓ 已選」、看有沒有沒存的字用）
+let unsavedShown = false;   // 儲存按鈕旁邊現在是不是寫著「還沒儲存」
 let tapSync = null;   // 點按同步進行中的資料
 let picker = null;    // 上網搜尋歌詞的清單（跟「加入歌曲」同一個）
 
@@ -76,7 +78,7 @@ export async function enter(app, id) {
     '        <textarea class="input lrc-editor" id="lrc-text" spellcheck="false"></textarea>' +
     '        <div class="button-row">' +
     '          <button class="btn btn-primary" id="save-button">' + icon('save') + ' ' + t('儲存') + '</button>' +
-    '          <span class="muted small" id="save-status"></span>' +
+    '          <span class="muted small" id="save-status" role="status"></span>' +
     '        </div>' +
     '      </section>' +
     '      <section class="panel">' +
@@ -117,6 +119,7 @@ export async function enter(app, id) {
     '    </div>' +
     '    <section class="panel preview-panel">' +
     '      <h2>' + icon('lyrics') + ' ' + t('預覽') + ' <span class="muted small" id="preview-status"></span></h2>' +
+    '      <p class="notice small" id="unsaved-note" hidden>' + t('歌詞文字還沒儲存，預覽是存著的那份') + '</p>' +
     '      <div id="lyrics-preview" class="lyrics-preview"></div>' +
     '    </section>' +
     '  </div>' +
@@ -124,6 +127,8 @@ export async function enter(app, id) {
 
   document.getElementById('lrc-text').value = data.lrc || '';
   savedLrc = data.lrc || '';
+  unsavedShown = false;
+  document.getElementById('lrc-text').addEventListener('input', showUnsaved);
   showOffset(data.offset || 0);
 
   // 上網搜尋歌詞：按「選這個」= 馬上換成那一份（整體偏移歸零），歌手空白的話用那份歌詞上的補上
@@ -143,6 +148,9 @@ export async function enter(app, id) {
       const notes = [];
       if (!inList && savedLrc.trim() !== '') {
         notes.push(t('現在的歌詞會被換掉（你自己改過的地方會不見）'));
+      }
+      if (isLrcDirty()) {
+        notes.push(t('歌詞文字還沒儲存的地方會不見'));
       }
       if ((Number(song.lyrics_offset) || 0) !== 0) {
         notes.push(t('字幕時間的移動會歸零'));
@@ -195,8 +203,18 @@ export async function enter(app, id) {
   document.addEventListener('keydown', onKeyDown);
 }
 
+// 要換到別頁之前，main.js 會先問這裡：有沒存的字就問要不要離開（回傳 false = 留在這一頁）
+export function canLeave() {
+  if (!isLrcDirty()) {
+    return true;
+  }
+  return confirmAction(t('歌詞文字還沒儲存，離開的話打的字會不見。\n確定要離開？'));
+}
+
 export function leave() {
   document.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('beforeunload', onBeforeUnload);
+  unsavedShown = false;
   stopTapSync();
   if (picker) {
     picker.destroy();
@@ -212,6 +230,7 @@ export function leave() {
 async function saveLrc(source, resetOffset) {
   const status = document.getElementById('save-status');
   status.textContent = t('儲存中…');
+  status.classList.remove('warn-text');
   try {
     const text = document.getElementById('lrc-text').value;
     const result = await api.saveLyrics(song.id, text, source, resetOffset);
@@ -226,12 +245,54 @@ async function saveLrc(source, resetOffset) {
       showOffset(0);
       status.textContent = t('已儲存 ✓（字幕時間的移動歸零）');
     }
+    // 「已儲存」留著；存的時候又打了字，就換回「還沒儲存」
+    unsavedShown = false;
+    showUnsaved();
     renderPreview(result.lyrics);
     return true;
   } catch (error) {
     status.textContent = t('儲存失敗：{message}', { message: error.message });
+    // 失敗的字留著，預覽上面的提示照有沒有沒存的字顯示
+    unsavedShown = isLrcDirty();
+    showUnsaved();
     return false;
   }
+}
+
+// ---------- 還沒儲存的提醒 ----------
+
+// 「歌詞文字」框裡的字跟存著的不一樣 = 還沒儲存
+function isLrcDirty() {
+  const box = document.getElementById('lrc-text');
+  return box !== null && box.value !== savedLrc;
+}
+
+// 照有沒有沒存的字，更新：儲存按鈕旁邊的「還沒儲存」、預覽上面的提示、關分頁前要不要先問
+// 旁邊的字只在「有／沒有」變了的時候才換（那格有 role="status"，螢幕報讀才不會每打一個字就唸一次）
+function showUnsaved() {
+  const status = document.getElementById('save-status');
+  const note = document.getElementById('unsaved-note');
+  if (!status || !note) {
+    return;
+  }
+  const dirty = isLrcDirty();
+  if (dirty !== unsavedShown) {
+    status.textContent = dirty ? t('還沒儲存') : '';
+    unsavedShown = dirty;
+  }
+  status.classList.toggle('warn-text', dirty);
+  note.hidden = !dirty;
+  if (dirty) {
+    window.addEventListener('beforeunload', onBeforeUnload);
+  } else {
+    window.removeEventListener('beforeunload', onBeforeUnload);
+  }
+}
+
+// 關分頁、重新整理：瀏覽器自己會跳出「要離開嗎？」（只有有沒存的字時才掛著）
+function onBeforeUnload(event) {
+  event.preventDefault();
+  event.returnValue = true;   // 舊一點的瀏覽器要這一行才會問
 }
 
 // 整體時間偏移：畫面上用「秒」，存檔用「毫秒」（lyrics_offset）
@@ -621,6 +682,7 @@ function finishTapSync(completed) {
 
   if (tappedCount > 0) {
     document.getElementById('lrc-text').value = lrcLines.join('\n');
+    showUnsaved();
     if (completed) {
       saveLrc('點按同步');
       showToast(t('同步完成，已儲存！'), 'ok');

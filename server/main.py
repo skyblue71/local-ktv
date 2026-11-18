@@ -18,8 +18,8 @@ from pydantic import BaseModel
 from server import (audio_tools, chart_store, cover_tools, job_queue, lyrics_consensus, lyrics_match, lyrics_search,
                     recording_export, separator, singing_check, song_store, syllable_model, trim, word_store,
                     youtube_import)
-from server.config import WEB_DIR
-from server.song_processor import make_lyrics, rebuild_lyrics
+from server.config import LYRICS_DEFAULTS, WEB_DIR
+from server.song_processor import make_lyrics, read_lyrics, rebuild_lyrics
 
 # 沒裝 yt-dlp 時的說明
 YTDLP_MISSING = '虛擬環境裡沒有 yt-dlp，請執行 setup.bat（會用 pip 安裝 yt-dlp）'
@@ -70,6 +70,7 @@ class SongUpdate(BaseModel):
     lyrics_auto_align: bool | None = None
     lyrics_syllable_ai: bool | None = None   # 每個字的填色用 AI 認音節（MMS）；False = 照音符平均分
     lyrics_show_absent: bool | None = None   # 這支影片沒唱的句子照樣顯示；False = 不顯示
+    reset_lyrics_settings: bool = False      # 「回到預設」：上面四個字幕設定都拿掉（= 沒設定過，用 config.py 的 LYRICS_DEFAULTS）
 
 
 class LyricsUpdate(BaseModel):
@@ -223,15 +224,24 @@ def add_youtube_song(request: YoutubeSongRequest):
     return song_store.get_meta(song_id)
 
 
+def song_for_page(song_id):
+    """給網頁的歌曲資料：沒設定過的字幕設定補上預設值（只給網頁看，不寫回 meta.json），網頁才知道現在是哪一種"""
+    meta = song_store.get_meta(song_id)
+    meta.update(song_store.lyrics_settings(meta))
+    return meta
+
+
 @app.get("/api/songs/{song_id}")
 def get_song(song_id: str):
     check_song(song_id)
-    return song_store.get_meta(song_id)
+    return song_for_page(song_id)
 
 
 @app.patch("/api/songs/{song_id}")
 def update_song(song_id: str, update: SongUpdate):
     check_song(song_id)
+    if update.reset_lyrics_settings:
+        song_store.remove_meta(song_id, LYRICS_DEFAULTS)
     changes = {}
     if update.title is not None:
         if update.title.strip() == "":
@@ -247,12 +257,13 @@ def update_song(song_id: str, update: SongUpdate):
         changes["lyrics_syllable_ai"] = update.lyrics_syllable_ai
     if update.lyrics_show_absent is not None:
         changes["lyrics_show_absent"] = update.lyrics_show_absent
-    meta = song_store.update_meta(song_id, changes)
-    # 偏移、自動對齊、AI 認音節、沒唱的句子要不要顯示改了，字幕要重新產生
+    song_store.update_meta(song_id, changes)
+    # 偏移、自動對齊、AI 認音節、沒唱的句子要不要顯示改了（或回到預設），字幕要重新產生
     if (update.lyrics_offset is not None or update.lyrics_auto_align is not None
-            or update.lyrics_syllable_ai is not None or update.lyrics_show_absent is not None):
+            or update.lyrics_syllable_ai is not None or update.lyrics_show_absent is not None
+            or update.reset_lyrics_settings):
         rebuild_lyrics(song_id)
-    return song_store.get_meta(song_id)
+    return song_for_page(song_id)
 
 
 @app.delete("/api/songs/{song_id}")
@@ -284,7 +295,7 @@ def suggest_trim(song_id: str):
     """自動找 MV 前後的劇情（有人說話）：回傳建議的裁切範圍（沒有劇情就回傳 suggestion: null）"""
     check_song(song_id)
     meta = song_store.get_meta(song_id)
-    lyrics = song_store.read_json(song_store.song_file(song_id, "lyrics.json"))
+    lyrics = read_lyrics(song_id)
     if lyrics is None or not lyrics.get("phrases"):
         return {"suggestion": None, "reason": "沒有時間軸歌詞，沒辦法判斷"}
     song_zero = trim.lyrics_start_in_video(meta, lyrics)
@@ -437,11 +448,12 @@ def delete_words(song_id: str):
 @app.get("/api/songs/{song_id}/lyrics")
 def get_lyrics(song_id: str):
     check_song(song_id)
+    lyrics = read_lyrics(song_id)   # 字幕的設定變了會先重做
     meta = song_store.get_meta(song_id)
     return {
         "lrc": song_store.read_text(song_store.song_file(song_id, "lyrics.lrc"), ""),
-        "lyrics": song_store.read_json(song_store.song_file(song_id, "lyrics.json")),
-        "offset": meta.get("lyrics_offset", 0),
+        "lyrics": lyrics,
+        "offset": song_store.lyrics_settings(meta)["lyrics_offset"],
         "source": meta.get("lyrics_source", ""),
     }
 
@@ -473,10 +485,12 @@ def match_lyrics(song_id: str, request: LyricsMatchRequest):
     # 不加你設的整體偏移：那是給現在這份歌詞用的。加了的話每一份都會被帶到同一個錯的地方，
     # 互相比對就比不出來。按「使用」換歌詞時偏移也會歸零
     offset = 0.0
+    # 「照歌詞檔」的歌整首不會自己移，比的時候也不移（不然標「時間準」的那份，用了還是會早或晚）
+    auto_align = song_store.lyrics_settings(meta)["lyrics_auto_align"]
     results = []
     version_lines = []
     for lrc_text in request.versions[:30]:
-        result = lyrics_match.evaluate(lrc_text, pitch.get("notes", []), meta.get("duration", 0), offset)
+        result = lyrics_match.evaluate(lrc_text, pitch.get("notes", []), meta.get("duration", 0), offset, auto_align)
         results.append(result)
         if result is None:
             version_lines.append([])
@@ -484,7 +498,7 @@ def match_lyrics(song_id: str, request: LyricsMatchRequest):
             version_lines.append(lyrics_match.video_lines(lrc_text, offset, result["shift"]))
 
     current_lines = []
-    lyrics = song_store.read_json(song_store.song_file(song_id, "lyrics.json"))
+    lyrics = read_lyrics(song_id)
     if lyrics is not None and lyrics.get("synced"):
         for line in lyrics["lines"]:
             current_lines.append((line["start"], line["text"]))

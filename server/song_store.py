@@ -21,7 +21,7 @@ import threading
 import time
 import uuid
 
-from server.config import SONGS_DIR
+from server.config import LYRICS_DEFAULTS, SONGS_DIR
 
 # 背景處理和網頁請求可能同時讀寫檔案，用一把「鎖」避免互相打架
 _file_lock = threading.Lock()
@@ -129,6 +129,26 @@ def update_meta(song_id, changes):
         meta[key] = changes[key]
     write_json(song_file(song_id, "meta.json"), meta)
     return meta
+
+
+def remove_meta(song_id, names):
+    """把 meta.json 裡的這幾個欄位拿掉（拿掉 = 沒設定過，用預設值）"""
+    meta = get_meta(song_id)
+    if meta is None:
+        return None
+    for name in names:
+        if name in meta:
+            del meta[name]
+    write_json(song_file(song_id, "meta.json"), meta)
+    return meta
+
+
+def lyrics_settings(meta):
+    """這首歌的字幕設定（config.py 的 LYRICS_DEFAULTS 那幾個）：設定過的用它的，沒設定過的用預設值"""
+    settings = {}
+    for name in LYRICS_DEFAULTS:
+        settings[name] = meta.get(name, LYRICS_DEFAULTS[name])
+    return settings
 
 
 def list_songs():

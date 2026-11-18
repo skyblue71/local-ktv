@@ -91,6 +91,20 @@ YOUTUBE_MAX_HEIGHT = 1080
 # 借用電腦裡的 Node.js 通過 YouTube 驗證，最低要幾版（yt-dlp 官方要求 22 以上）
 NODE_MIN_VERSION = 22
 
+# 「編輯歌詞 → 字幕時間」的設定，每首歌沒設定過就用這些（按「回到預設」也是回到這些）：
+#   lyrics_auto_align ：歌詞時間。False = 照歌詞檔（每一句照歌詞檔寫的時間）；
+#                       True = 自動（AI 聽歌聲，整首早晚自己移、句子搬到歌手唱的地方、沒唱的句子不顯示）
+#   lyrics_offset     ：整首移動幾毫秒（只有照歌詞檔才用）
+#   lyrics_syllable_ai：AI 認音節（每個字的填色時間用 AI 聽的）
+#   lyrics_show_absent：影片沒唱的句子照樣顯示（只有自動才會找沒唱的句子）
+# 改了這裡，沒設定過的歌下次打開時字幕會自己重做（server\song_processor.py 的 read_lyrics）
+LYRICS_DEFAULTS = {
+    "lyrics_auto_align": False,
+    "lyrics_offset": 0,
+    "lyrics_syllable_ai": True,
+    "lyrics_show_absent": False,
+}
+
 # 唱完下載錄音的格式（結果畫面的下載按鈕就是照這張表排的，一列一顆按鈕）
 #   id        ：格式的代號，也是下載檔案的副檔名
 #   label     ：按鈕上的字（前面會自動加「下載」）

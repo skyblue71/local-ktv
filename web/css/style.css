@@ -694,6 +694,13 @@ label:has(> input[type="radio"]:checked) {
   color: var(--text);
 }
 
+/* 同一組的單選（例如「照歌詞檔／自動」）：包成一組，螢幕報讀知道是一題，排起來跟旁邊的按鈕一樣間隔 */
+.radio-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* 開關：左右滑的那種 */
 .switch {
   position: relative;

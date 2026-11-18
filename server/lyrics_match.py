@@ -2,7 +2,8 @@
 一份歌詞跟這首歌（這支影片）的歌聲對不對得上。「編輯歌詞」搜尋時，在每個版本旁邊標出來，讓你知道該選哪一個。
 
 回傳：
-  shift      程式會自動把整首移幾秒（跟字幕用的同一套：lyrics_builder.estimate_shift）
+  shift      程式會自動把整首移幾秒（跟字幕用的同一套：lyrics_builder.estimate_shift）；
+             歌詞時間是「照歌詞檔」的歌不會自己移，一律是 0
   silent     移完之後，有幾句放在「沒人在唱」的地方（那一句的時間內，原唱幾乎沒聲音）
   silent_at  第一句沒人唱的時間（秒）
   lines      有時間的句數
@@ -26,13 +27,18 @@ def video_lines(lrc_text, offset_seconds, shift):
     return lines
 
 
-def evaluate(lrc_text, notes, duration, offset_seconds):
-    """回傳這份歌詞的比對結果；沒有時間軸、或這首歌還沒有音符，回傳 None"""
+def evaluate(lrc_text, notes, duration, offset_seconds, auto_align):
+    """
+    回傳這份歌詞的比對結果；沒有時間軸、或這首歌還沒有音符，回傳 None
+    auto_align：這首歌的「歌詞時間」是不是「自動」（不是的話整首不會自己移，照歌詞檔的時間比）
+    """
     parsed = parse_lrc(lrc_text)
     if not parsed["synced"] or len(notes) == 0 or not duration:
         return None
     raw = parsed["lines"]
-    shift = estimate_shift(raw, notes, offset_seconds, duration)
+    shift = 0.0
+    if auto_align:
+        shift = estimate_shift(raw, notes, offset_seconds, duration)
     prefix = lyrics_fit.voiced_prefix(notes, duration)
     cells = len(prefix) - 1
 

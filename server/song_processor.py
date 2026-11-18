@@ -31,27 +31,30 @@ def make_lyrics(song_id, lrc_text, use_offset=True):
     「編輯歌詞」的試聽也用這個，所以試聽看到的字幕跟真的唱歌時一模一樣
     use_offset=False：不加整體偏移（搜尋結果的試聽：按「使用」換歌詞時偏移會歸零）"""
     meta = song_store.get_meta(song_id)
+    settings = song_store.lyrics_settings(meta)   # 沒設定過的用 config.py 的 LYRICS_DEFAULTS
     pitch = song_store.read_json(song_store.song_file(song_id, "pitch.json"), {})
     notes = pitch.get("notes", [])
     # 整體偏移（毫秒）。裁切跟歌詞時間無關（trim.py），不用加
-    # 只有「照歌詞檔」（lyrics_auto_align = False）才用你手動移的秒數；
+    # 只有「照歌詞檔」（lyrics_auto_align = False）才用手動移的秒數；
     # 「自動」時程式自己會整首移、每句對，再加手動移的只會互相打架（存著的數字不會刪，切回「照歌詞檔」就又有用）
     offset_ms = 0
-    if use_offset and not meta.get("lyrics_auto_align", True):
-        offset_ms = meta.get("lyrics_offset", 0)
-    # 認音節的結果（沒有、或你在「編輯歌詞」取消勾選「AI 認音節」，就是 None，字幕照音符分）
+    if use_offset and not settings["lyrics_auto_align"]:
+        offset_ms = settings["lyrics_offset"]
+    # 認音節的結果（沒有、或在「編輯歌詞」關掉「AI 認音節」，就是 None，字幕照音符分）
     emission = None
-    if meta.get("lyrics_syllable_ai", True):
+    if settings["lyrics_syllable_ai"]:
         emission = syllable_model.load_emission(song_store.song_dir(song_id))
     lyrics = build_lyrics(lrc_text, notes, meta.get("duration", 0), offset_ms,
-                          meta.get("lyrics_auto_align", True), pitch.get("heard"), pitch.get("hop", 0.0),
-                          emission, pitch.get("loudness"), meta.get("lyrics_show_absent", False))
-    # 你在修譜頁自己調過的字：照你的時間（word_store.py）
+                          settings["lyrics_auto_align"], pitch.get("heard"), pitch.get("hop", 0.0),
+                          emission, pitch.get("loudness"), settings["lyrics_show_absent"])
+    # 在修譜頁調過的字：照調過的時間（word_store.py）
     word_store.apply_words(lyrics, word_store.get_words(song_id))
     # 每一段原唱是唱歌還是說話（「自動找劇情」用這份）
     if lyrics["synced"] and pitch.get("contour"):
         lyrics["phrases"] = singing_check.classify_phrases(notes, lyrics["lines"], pitch["contour"],
                                                            pitch.get("heard"), pitch.get("hop", 0.01))
+    # 做這份字幕時用的設定（read_lyrics 拿來比：設定變了就重做）
+    lyrics["settings"] = settings
     return lyrics
 
 
@@ -71,6 +74,26 @@ def rebuild_lyrics(song_id):
     song_store.write_json(json_path, lyrics)
     song_store.update_meta(song_id, {"has_lyrics": True, "lyrics_synced": lyrics["synced"]})
     return lyrics
+
+
+def read_lyrics(song_id):
+    """
+    讀這首歌存好的字幕（lyrics.json）。
+    做字幕時用的設定跟現在的不一樣（例如 config.py 的 LYRICS_DEFAULTS 改了，沒設定過的歌就跟著變），
+    先重做再回傳。重做失敗就回傳存著的那份
+    """
+    lyrics = song_store.read_json(song_store.song_file(song_id, "lyrics.json"))
+    meta = song_store.get_meta(song_id)
+    if lyrics is None or meta is None or meta.get("status") != "ready":
+        return lyrics
+    if lyrics.get("settings") == song_store.lyrics_settings(meta):
+        return lyrics
+    print("[" + song_id + "] 字幕的設定變了，重做字幕")
+    try:
+        return rebuild_lyrics(song_id)
+    except Exception:
+        traceback.print_exc()
+        return lyrics
 
 
 def download_from_youtube(song_id, url, folder):

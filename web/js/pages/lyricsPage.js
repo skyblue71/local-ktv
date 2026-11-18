@@ -31,14 +31,14 @@ const OFFSET_HELP = t('整首字幕一起移。\n字幕比歌聲早出來 → �
   t('也可以直接打秒數，負的是提早\n\n') +
   t('會影響：字幕，和跟著字走的評分條。\n不會影響：你修過的譜、裁切');
 const ALIGN_HELP = t('決定每一句從幾秒開始。下面說的 AI，是會聽「每個字在第幾秒唱」的那個模型。\n\n') +
+  t('照歌詞檔：\n・整首早或晚：不會自己移，用你設的「整首移動」。\n') +
+  t('・每一句都待在歌詞檔寫的那段時間裡，不搬、也不會少。\n\n') +
   t('自動：\n・整首早或晚：程式拿歌詞檔的時間跟歌聲比，自己算要移幾秒。\n') +
   t('・每一句：AI 聽整首歌，找這一句是在哪裡唱的。跟歌詞檔寫的地方差很多、AI 又很確定，才搬過去。\n') +
   t('・這支影片沒唱的句子不顯示。\n\n') +
-  t('照歌詞檔：\n・整首早或晚：不會自己移，用你設的「整首移動」。\n') +
-  t('・每一句都待在歌詞檔寫的那段時間裡，不搬、也不會少。\n\n') +
-  t('兩種都一樣：句子裡每個字從幾秒開始，是 AI 聽的。\n自動放錯的歌，改選「照歌詞檔」\n\n') +
+  t('兩種都一樣：句子裡每個字從幾秒開始，是 AI 聽的。\n歌詞檔的時間對不上這支影片（例如中間有劇情），可以試「自動」\n\n') +
   t('換了會影響：這首歌的字幕和評分條重做。\n不會影響：你修過的譜、你調過的字、裁切。\n') +
-  t('「回到預設」：自動、整首移動歸零、AI 認音節打開、沒唱的句子不顯示');
+  t('「回到預設」：歌詞時間、整首移動、AI 認音節、沒唱的句子要不要顯示，都回到剛加歌時的樣子');
 const SYLLABLE_HELP = t('AI 聽出每個字、每一拍什麼時候唱，填色和評分條都照著走。\n') +
   t('關掉：AI 不聽字。每一句從歌詞檔的時間開始，句子裡每個字的時間照評分條平均分（跟實際唱的會有落差）；也不會搬句子、不會拿掉沒唱的句子。\n\n') +
   t('會影響：字幕每個字的時間、評分條在哪裡切開。\n不會影響：你修過的譜、你調過的字');
@@ -82,11 +82,13 @@ export async function enter(app, id) {
     '      <section class="panel">' +
     '        <h2>' + icon('clock') + ' ' + t('字幕時間') + '</h2>' +
     '        <div class="form-grid">' +
-    '          <span>' + t('歌詞時間') + helpTip(ALIGN_HELP) + '</span>' +
+    '          <span><span id="align-mode-label">' + t('歌詞時間') + '</span>' + helpTip(ALIGN_HELP) + '</span>' +
     '          <div class="button-row">' +
-    '            <label><input type="radio" name="align-mode" id="align-auto" value="auto"> ' + t('自動') + '</label>' +
-    '            <label><input type="radio" name="align-mode" id="align-file" value="file"> ' + t('照歌詞檔') + '</label>' +
-    '            <button class="btn btn-small btn-ghost" id="timing-reset">' + t('回到預設') + '</button>' +
+    '            <span class="radio-group" role="radiogroup" aria-labelledby="align-mode-label">' +
+    '              <label><input type="radio" name="align-mode" id="align-file" value="file"> ' + t('照歌詞檔') + '</label>' +
+    '              <label><input type="radio" name="align-mode" id="align-auto" value="auto"> ' + t('自動') + '</label>' +
+    '            </span>' +
+    '            <button type="button" class="btn btn-small btn-ghost" id="timing-reset">' + t('回到預設') + '</button>' +
     '          </div>' +
     '          <span id="offset-label">' + t('整首移動') + helpTip(OFFSET_HELP) + '</span>' +
     '          <div class="offset-control" id="offset-row">' +
@@ -163,7 +165,7 @@ export async function enter(app, id) {
   document.getElementById('align-file').addEventListener('change', applyAutoAlign);
   document.getElementById('timing-reset').addEventListener('click', resetTiming);
   const syllableAi = document.getElementById('syllable-ai');
-  syllableAi.checked = song.lyrics_syllable_ai !== false;   // 沒設定過 = 打開
+  syllableAi.checked = song.lyrics_syllable_ai === true;   // 沒設定過的，伺服器會補上預設值
   syllableAi.addEventListener('change', applySyllableAi);
   renderPreview(data.lyrics);
 
@@ -303,9 +305,10 @@ async function saveOffset() {
   showRebuilding(false);
 }
 
-// 歌詞時間用哪一種：自動（沒設定過 = 自動）還是照歌詞檔
+// 歌詞時間用哪一種：照歌詞檔還是自動
+//（沒設定過的，伺服器會補上預設值：server\config.py 的 LYRICS_DEFAULTS）
 function isAutoAlign() {
-  return song.lyrics_auto_align !== false;
+  return song.lyrics_auto_align === true;
 }
 
 // 照現在的設定顯示：選項打勾；「整首移動」只有「照歌詞檔」才看得到（自動的時候移了也沒用）
@@ -332,16 +335,14 @@ async function applyAutoAlign() {
   showRebuilding(false);
 }
 
-// 回到預設：自動、整首移動歸零、AI 認音節打開、沒唱的句子不顯示
+// 回到預設：字幕的四個設定都拿掉，伺服器改用預設值（server\config.py 的 LYRICS_DEFAULTS），畫面照回傳的顯示
 async function resetTiming() {
   showRebuilding(true);
   try {
-    song = await api.updateSong(song.id, {
-      lyrics_auto_align: true, lyrics_offset: 0, lyrics_syllable_ai: true, lyrics_show_absent: false,
-    });
+    song = await api.updateSong(song.id, { reset_lyrics_settings: true });
     showAlignMode();
-    showOffset(0);
-    document.getElementById('syllable-ai').checked = true;
+    showOffset(Number(song.lyrics_offset) || 0);
+    document.getElementById('syllable-ai').checked = song.lyrics_syllable_ai === true;
     const data = await api.getLyrics(song.id);
     renderPreview(data.lyrics);
     showToast(t('字幕時間回到預設'), 'ok');
